@@ -1,0 +1,85 @@
+name: Verify RepoPilotV3
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  python:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.13'
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: uv sync --frozen --group dev --extra csharp
+      - name: Explicit synthetic dependency provisioning
+        run: uv run --frozen python tools/provision_fixtures.py --dotnet dotnet
+      - run: uv run --frozen ruff check src tests tools examples
+      - run: uv run --frozen pytest -q
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.13'
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - run: uv sync --frozen --group dev
+      - run: npm ci --prefix extension --ignore-scripts
+      - run: uv run --frozen python tools/build.py
+      - run: uv run --frozen python tools/verify.py --smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repopilotv3-vsix
+          path: dist/*.vsix
+  extension:
+    needs: package
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        editor: ['1.85.2', stable]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: repopilotv3-vsix
+          path: dist
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.13'
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - run: uv sync --frozen --group dev
+      - run: npm ci --prefix extension --ignore-scripts
+      - name: Extract the same release for both native hosts
+        run: uv run --frozen python -c "import zipfile; zipfile.ZipFile('dist/repopilotv3-0.2.10.vsix').extractall('.')"
+      - run: npm test --prefix extension
+      - run: uv run --frozen python tools/verify.py --smoke
+      - name: Editor checks (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:editor
+        working-directory: extension
+        env:
+          VSCODE_TEST_VERSION: ${{ matrix.editor }}
+      - name: Editor checks (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:editor
+        working-directory: extension
+        env:
+          VSCODE_TEST_VERSION: ${{ matrix.editor }}

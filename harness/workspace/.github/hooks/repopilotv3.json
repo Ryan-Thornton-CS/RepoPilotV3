@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event sessionStart",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event sessionStart",
+        "timeoutSec": 5
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event userPromptSubmitted",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event userPromptSubmitted",
+        "timeoutSec": 5
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event preToolUse",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event preToolUse",
+        "timeoutSec": 5
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event postToolUse",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event postToolUse",
+        "timeoutSec": 5
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event postToolUseFailure",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event postToolUseFailure",
+        "timeoutSec": 5
+      }
+    ],
+    "preCompact": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event preCompact",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event preCompact",
+        "timeoutSec": 5
+      }
+    ],
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "python -m repopilotv3.integrations.hooks --repo . --event agentStop",
+        "powershell": "python -m repopilotv3.integrations.hooks --repo . --event agentStop",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

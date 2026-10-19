@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "source": "https://raw.githubusercontent.com/astral-sh/uv/0.12.13/crates/uv-python/download-metadata.json",
+  "platforms": {
+    "linux-x64": {
+      "version": "3.12.14",
+      "url": "https://releases.astral.sh/github/python-build-standalone/releases/download/20260901/cpython-3.12.14%2B20260901-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "72748da13197c1fb161e3afeef20a6a385ff24f2165e6e2758e47008e7faba4c",
+      "python": "bin/python3.12",
+      "site_packages": "lib/python3.12/site-packages",
+      "wheel_platform": "manylinux_2_17_x86_64",
+      "key": "cpython-3.12.14-linux-x86_64-gnu"
+    },
+    "win32-x64": {
+      "version": "3.12.14",
+      "url": "https://releases.astral.sh/github/python-build-standalone/releases/download/20260901/cpython-3.12.14%2B20260901-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "7c45c9622400d578709a9b2cddbe8124cc21d382409d9f13406d706d28e31b14",
+      "python": "python.exe",
+      "site_packages": "Lib/site-packages",
+      "wheel_platform": "win_amd64",
+      "key": "cpython-3.12.14-windows-x86_64-none"
+    }
+  },
+  "uv_version": "0.12.13"
+}

@@ -1,0 +1,800 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repopilotv3.local/schemas/v1/request.schema.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "task"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "objective": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000
+            },
+            "task_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "chat_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "seeds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "maxItems": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "todo"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "objective": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "progress": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "text",
+                      "status"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "enum": [
+                          "pending",
+                          "active",
+                          "blocked",
+                          "completed"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "maxItems": 100
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "decisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "questions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "assumptions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                },
+                "required_tests": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maxItems": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            "seeds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "maxItems": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "search"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "read"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "context"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "maxItems": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "changes"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "validation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "propose_patch"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "base_snapshot": {
+              "type": "string",
+              "minLength": 1
+            },
+            "base_hashes": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 100,
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "diff": {
+              "type": "string",
+              "minLength": 1
+            },
+            "files": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 100,
+              "description": "Complete proposed UTF-8 contents by repository-relative path; null deletes a file, empty string creates or empties it.",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "required": [
+            "base_snapshot",
+            "base_hashes"
+          ],
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "diff"
+              ]
+            },
+            {
+              "required": [
+                "files"
+              ]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "validate"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "profile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "handoff"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "run_command"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "argv": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 200,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
+              }
+            },
+            "cwd": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600
+            }
+          },
+          "required": [
+            "argv"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "command_output"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "command_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "protocol_version",
+        "request_id",
+        "tool",
+        "arguments"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "tool": {
+          "const": "batch"
+        },
+        "arguments": {
+          "type": "object",
+          "properties": {
+            "calls": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "tool",
+                      "arguments"
+                    ],
+                    "properties": {
+                      "tool": {
+                        "const": "search"
+                      },
+                      "arguments": {
+                        "type": "object",
+                        "properties": {
+                          "query": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "limit": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                          }
+                        },
+                        "required": [
+                          "query"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "tool",
+                      "arguments"
+                    ],
+                    "properties": {
+                      "tool": {
+                        "const": "read"
+                      },
+                      "arguments": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "start": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "end": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [
+                          "path"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "tool",
+                      "arguments"
+                    ],
+                    "properties": {
+                      "tool": {
+                        "const": "context"
+                      },
+                      "arguments": {
+                        "type": "object",
+                        "properties": {
+                          "query": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "paths": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "maxItems": 100
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "tool",
+                      "arguments"
+                    ],
+                    "properties": {
+                      "tool": {
+                        "const": "changes"
+                      },
+                      "arguments": {
+                        "type": "object",
+                        "properties": {
+                          "validation_id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "start": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "end": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "tool",
+                      "arguments"
+                    ],
+                    "properties": {
+                      "tool": {
+                        "const": "command_output"
+                      },
+                      "arguments": {
+                        "type": "object",
+                        "properties": {
+                          "command_id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "start": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "end": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [
+                          "command_id"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 8
+            }
+          },
+          "required": [
+            "calls"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

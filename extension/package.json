@@ -1,0 +1,115 @@
+{
+  "name": "repopilotv3",
+  "displayName": "RepoPilotV3",
+  "description": "Local manual WebUI sessions, reviewed patches and repository context; no model connection.",
+  "version": "0.2.10",
+  "publisher": "repopilot-local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onView:repopilotv3.sessions"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "No backend or commands execute until the workspace is trusted."
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "repopilotv3",
+          "title": "RepoPilotV3",
+          "icon": "media/repopilot.svg"
+        }
+      ]
+    },
+    "views": {
+      "repopilotv3": [
+        {
+          "id": "repopilotv3.sessions",
+          "name": "Sessions",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "repopilotv3.open",
+        "title": "RepoPilotV3: Open Sessions"
+      },
+      {
+        "command": "repopilotv3.openHarness",
+        "title": "RepoPilotV3: Open Harness Folder"
+      },
+      {
+        "command": "repopilotv3.selectWorkspace",
+        "title": "RepoPilotV3: Select Workspace"
+      },
+      {
+        "command": "repopilotv3.restart",
+        "title": "RepoPilotV3: Reconnect Backend (No Replay)"
+      },
+      {
+        "command": "repopilotv3.diagnostics",
+        "title": "RepoPilotV3: Diagnostics"
+      }
+    ],
+    "configuration": {
+      "title": "RepoPilotV3",
+      "properties": {
+        "repopilotv3.pythonPath": {
+          "type": "string",
+          "default": "bundled",
+          "scope": "machine-overridable",
+          "description": "Bundled Python by default; an optional explicit executable selects an advanced custom environment."
+        },
+        "repopilotv3.statePath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Optional absolute host-owned private state directory; use a separate directory for each selected project."
+        },
+        "repopilotv3.autoCopyResponses": {
+          "type": "boolean",
+          "default": true,
+          "description": "Copy completed manual/local approval responses. Background refresh never copies."
+        },
+        "repopilotv3.refreshSeconds": {
+          "type": "number",
+          "default": 5,
+          "minimum": 2,
+          "maximum": 60,
+          "description": "Debounced/polling refresh interval for the active session package."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test out/test/unit.js",
+    "test:editor": "node out/test/run.js",
+    "package": "uv run --frozen --project .. --group dev python ../tools/build.py"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.76",
+    "@types/vscode": "1.85.0",
+    "@vscode/test-electron": "2.5.2",
+    "@vscode/vsce": "3.2.2",
+    "jsdom": "26.0.0",
+    "typescript": "5.7.3"
+  }
+}

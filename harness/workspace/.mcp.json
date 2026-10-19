@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "repopilotv3": {
+      "command": "python",
+      "args": ["-m", "repopilotv3", "--repo", ".", "mcp", "serve"]
+    }
+  }
+}

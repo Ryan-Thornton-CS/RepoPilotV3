@@ -1,0 +1,91 @@
+# Setup and troubleshooting
+
+## Install the single VSIX
+
+Choose **Extensions: Install from VSIX**, select `repopilotv3-0.2.10.vsix`, and reload VS Code if prompted. Open a trusted local folder and click RepoPilot's icon. The backend initializes private state automatically. No external Python, pip, uv, installer, internet connection or account is needed.
+
+The same VSIX contains CPython 3.12.14 and fully installed dependencies for **Windows x64** and **Linux/WSL x64**. Linux needs a glibc-based x64 distribution compatible with the bundled manylinux2014 wheels; Alpine/musl is unsupported. macOS and ARM are not included. Install in the **WSL/remote extension host** when working in a Remote WSL window. The extension selects that host's runtime, not the UI computer's runtime.
+
+The panel uses stable VS Code **1.85+** APIs. Copilot agent/handoff, MCP and hook support depend separately on the installed editor/Copilot versions. Native Windows is recommended for actual Inventor add-ins. SDKs, Framework reference assemblies and Inventor DLLs remain host tools; Python.NET bindings are already bundled. See [C#/Inventor](csharp-inventor.md).
+
+First use **⚙ → Copy project prompt** and paste it into the WebUI project's reusable instructions. This works before creating a session. The standalone guidance defines behavior and tools with an enforced 8,000-character ceiling (currently 7,840 characters). The same prompt is exported as 00_PROJECT_INSTRUCTIONS.md.
+
+Then click **New session**, paste its short starter into a new chat in that project, and **Paste + Run** the model’s task/TODO reply. The starter contains session identity, mode and the task introduction or continuation; it does not repeat the project prompt, tool catalog or repository map. Copy the reusable prompt again when its version changes; local updates never change external project settings automatically.
+
+Mode, TODO, context and **Update context** sit below the composer; settings live in ⚙. See the [walkthrough](walkthrough.md). **⚙ → Validation profile → python** explicitly approves pytest execution; pytest is already bundled. Initialization never runs tests or modifies `.github`/MCP files.
+
+## Select a project inside a larger workspace
+
+Use **⚙ → Select workspace**, browse to the specific project directory, and choose **Use project folder**. You can select a subfolder or another accessible folder; it does not need to be a top-level entry in your VS Code workspace. RepoPilot leaves your workspace file and other open projects unchanged. The options menu shows the exact selected path, and RepoPilot remembers it across reloads. A missing saved folder produces an actionable error rather than silently switching back to a parent directory.
+
+Each selected folder uses its own private state and sessions; existing chats stay with their original folder. A custom `statePath` must be unique to the project. Create a new chat after switching projects and use that chat’s starter so the external model receives the correct source context. Only the selected folder is indexed; sibling projects are excluded. Hover menu items, modes, checkboxes and chat/context actions for concise descriptions.
+
+## Copilot and CLI
+
+**Open Harness Folder** opens the bundled authoritative agent/MCP/hook files. Follow its manual merge instructions. Setup never creates or rewrites workspace harness files. Set copied MCP and hook commands to the bundled Python executable, or your own developer environment; their configuration is independent of the panel.
+
+To locate the runtime, find RepoPilotV3's installed extension folder using VS Code's **Developer: Open Extensions Folder**. Under it use `backend/win32-x64/python/python.exe` on Windows or `backend/linux-x64/python/bin/python3.12` on Linux. This executable can also run `-I -m repopilotv3 --help`. Absolute harness paths must be adjusted after changing the extension version/location. A source checkout can instead use `uv sync --frozen --group dev --extra csharp` and its `.venv`.
+
+## Settings and workspaces
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `repopilotv3.pythonPath` | `bundled` | Optional absolute executable override containing backend 0.2.x |
+| `repopilotv3.statePath` | empty | Host-owned `.repopilotv3/` under the selected root |
+| `repopilotv3.autoCopyResponses` | `true` | Copy completed user-triggered responses only |
+| `repopilotv3.refreshSeconds` | `5` | Active-package polling interval, 2–60 seconds |
+
+Use **Select Workspace** for multi-root projects. Separate roots/hosts need separate SQLite state directories; never share a live database between Windows and WSL. V3 does not migrate V1/V2 state. Move the view beside Chat using VS Code's standard view-container actions.
+
+## If something fails
+
+- **Backend launch:** check **Output → RepoPilotV3**, Workspace Trust and the extension-host architecture. Leave `pythonPath` at `bundled`; clear an old explicit path if it points to a removed environment. Reinstall the VSIX if bundled files are missing. Corporate policies may block bundled executables and require administrator approval.
+- **Disconnect:** use **Reconnect Backend**. It reads persisted history and never replays a request, patch or validation. Inspect uncertain operations before continuing.
+- **Ownership:** choose a different absolute `statePath` for another host/root. Do not edit database ownership fields.
+- **`todo_required`:** this chat's model must call `todo`, even when continuing an existing task.
+- **`request_conflict`:** an ID was reused with different JSON. Use a new ID. An identical request returns its recorded result.
+- **`request_interrupted`:** inspect source, evidence and patch journal before a new request; never blindly replay a mutation.
+- **Patch stale/dirty editor:** save explicitly and refresh context; ask for a new proposal with current hashes. Native diffs are read-only and approval covers the whole proposal. Recovery only repairs interrupted application and refuses to overwrite later edits.
+- **Validation:** no approved profile means no tests executed. A successful check differs from test evidence. Missing JUnit/TRX is inconclusive; source/config changes make previous evidence historical.
+- **Clipboard:** expand/select JSON or open the saved outbox file if the native clipboard fails. Background refresh never copies. Confirm only actual external transfers, not local copies.
+- **Harness discovery:** manually choose one MCP format and verify native tool/agent/hook support in Copilot's logs. Partial hook coverage is reported; stop hooks never force continuation.
+
+RepoPilot makes no model calls or telemetry requests, and never installs its own runtime dependencies during operation. A session-authorized command may restore project dependencies or use the network. Approved validation commands and project build targets can perform their own network activity. Dependencies/runtimes are provisioned only when a developer explicitly builds the VSIX.
+
+## Commands and chat controls
+
+New chats begin in Planning. The model can name them and maintain task/TODO through registered JSON tools. Send prepares typed user text for the WebUI; Paste + Run executes explicit requests in model replies. Use the composer menu to run an edited reply. Ordinary text never executes commands.
+
+The first run_command request presents a local grant for this session. Approved commands execute with your account permissions, can modify files/use the network, and remain authorized until revoked through ⚙. Stop cancels the command tree. Future sessions, including continuations, need a new grant. Source changes proposed through patches always await whole-proposal approval.
+
+The context meter shows observed estimates against a per-chat workflow threshold; clicking it changes the default 40,000 budget. Update context opens the refresh/upload checklist. Threshold advisories prepare handoffs without stopping work. Existing V3 sessions load with Planning, 40k and no command grant; their history/tasks/drafts remain intact.
+
+## Repository busy during startup
+
+Session replies display before routine package refresh and clipboard/diff work. Active-task packages refresh in the background; blank chats avoid automatic indexing. **Update context** always performs an explicit refresh. If opening a session is slow, inspect **Output → RepoPilotV3**: backend startup and session restoration have timings; requests over 500 ms show their method and elapsed time. Client timings include queue/transport delays; handler timings exclude the queue. Slow clipboard copies are reported separately. No message bodies are logged. First source indexing, Roslyn/MSBuild loading, remote filesystems and editor/OS startup can still take time; timings identify which part is waiting.
+
+Version 0.2.10 shares backend initialization across overlapping panel events and waits for normal writer contention. Background context refresh quietly defers when another writer is active. Session deletion uses a separate management queue and does not wait for context exports. Status reads only the snapshot identity rather than parsing historical analysis. Reconnect waits for its previous backend to exit; it never replays an edit or command. Open the actual source folder rather than your entire home directory. Editor extensions, caches, credentials and user dependency stores are excluded from scanning; parent-folder scans also honor nested repositories' Git ignore files.
+
+After upgrading, reload **all VS Code windows using RepoPilot** so an old backend cannot keep indexing the same workspace. If a long operation still holds the writer for over 30 seconds, the foreground message explains how to finish or close that older window and retry. Do not delete `writer.lock`: operating-system ownership releases it when its process exits. Status and history stay available while work is queued.
+
+Archive, restore or delete chats from **☰ Sessions**. Deletion is a local action with confirmation; it is unavailable to model tools. A running command or interrupted patch requiring recovery blocks deletion. Deleting a chat retains shared task state and provenance/recovery material; it is not a secure erase of immutable packages or logs.
+
+After confirmation the deleted row disappears immediately, independently of the next history refresh. A durable private marker prevents it from reappearing even if an index transaction delays cleanup; pending database cleanup resumes on backend restart. A session actively executing a tool is kept with an immediate actionable message, rather than queuing deletion behind that operation. Other sessions can still be deleted.
+
+For invalid hunk counts, ask the model to use `propose_patch` with `files` instead of `diff`. Send complete contents for each changed file, with current snapshot/base hashes. RepoPilot generates the diff locally; normal native review and approval follow. After updating the extension, use **⚙ → Copy project prompt** to replace your WebUI project instructions and **Update context** to refresh the protocol/schema attachments. Local regeneration does not confirm those external transfers.
+
+Automatic export retention checks run during package preparation/reuse, at most once a minute by default. When generated export folders plus their artifact cache exceed **512 MiB**, cleanup removes oldest superseded generations and unreachable cache entries toward **384 MiB**. Every existing chat's current package (including archived chats) and two newest generations remain protected. Deleted chats no longer pin generated source exports. Current manifests and upload receipts remain valid; task/history databases, validation logs, source snapshots, patch proposals and recovery copies are outside this cleanup scope. Protected packages can exceed the soft limit; diagnostics report this instead of deleting them. Previously opened old export folders may disappear after retention; use the current package folder.
+
+Configure the private `.repopilotv3/config.json` (or your configured external state location):
+
+```json
+"export_cleanup": {
+  "enabled": true,
+  "max_bytes": 536870912,
+  "target_bytes": 402653184,
+  "keep_generations": 2,
+  "interval_seconds": 60
+}
+```
+
+`target_bytes` must not exceed `max_bytes`. Set `enabled` to false to disable retention. Existing configurations receive these defaults in memory without rewriting your file. **Diagnostics** reports the policy and last cleanup's freed/remaining bytes and any warning; the same local report lives in `exports/cleanup.json`. Cleanup runs under the existing repository writer lock, refuses symlinked/corrupt storage, and reports errors without making a completed export fail. It never removes external WebUI attachments or confirms transfers.

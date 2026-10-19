@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "repopilotv3": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "repopilotv3", "--repo", "${workspaceFolder}", "mcp", "serve"]
+    }
+  }
+}
