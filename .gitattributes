@@ -1,0 +1,5 @@
+# Keep source bytes consistent with the Linux-built VSIX on every checkout host.
+* text=auto eol=lf
+*.png binary
+*.vsix binary
+*.zip binary

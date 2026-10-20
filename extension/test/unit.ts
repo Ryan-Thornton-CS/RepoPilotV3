@@ -147,20 +147,24 @@ test('connection loss rejects pending work; explicit reconnect inspects interrup
     const session = status.session.id;
     const request = { protocol_version: '1.0', request_id: 'start', tool: 'todo', arguments: {} };
     await client.request('manual.execute', { session_id: session, text: JSON.stringify(request) });
-    // A locally authored profile provides time to interrupt after the reservation is written.
+    // A process marker proves execution has begun after both reservation and history persist.
     const configFile = path.join(root, '.repopilotv3', 'config.json');
     const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-    config.profiles.slow = { kind: 'check', args: [], timeout: 5, argv: [python, '-c', 'import time; time.sleep(1)'] };
+    const marker = path.join(root, '.repopilotv3', 'validation-started');
+    config.profiles.slow = { kind: 'check', args: [], timeout: 60, argv: [python, '-c',
+      'import pathlib,time; pathlib.Path(' + JSON.stringify(marker) + ').write_text("started"); time.sleep(60)'] };
     fs.writeFileSync(configFile, JSON.stringify(config));
     const pending = client.request('manual.execute', { session_id: session,
       text: JSON.stringify({ ...request, request_id: 'uncertain', tool: 'validate', arguments: { profile: 'slow' } }) });
     const rejected = assert.rejects(pending, /disconnected/);
-    // Wait until the original request is actually persisted, not an arbitrary timer.
-    for (let i = 0; i < 100; i++) {
-      const current = await client.request('sessions.status', { session_id: session });
-      if (current.interrupted_requests.includes('uncertain')) { break; }
-      await new Promise(resolve => setTimeout(resolve, 10));
+    const deadline = performance.now() + 20000;
+    while (!fs.existsSync(marker) && performance.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 25));
     }
+    assert.ok(fs.existsSync(marker), 'Validation did not begin before the interruption deadline');
+    const recorded = await client.request('history.list', { session_id: session });
+    assert.ok(recorded.some((row: any) => row.kind === 'request' && row.body.request_id === 'uncertain'));
+    assert.ok((await client.request('sessions.status', { session_id: session })).interrupted_requests.includes('uncertain'));
     (client as any).process.kill('SIGKILL');
     await rejected;
     client.dispose();
@@ -169,8 +173,9 @@ test('connection loss rejects pending work; explicit reconnect inspects interrup
     const restored = await client.request('sessions.status', { session_id: session });
     assert.ok(restored.interrupted_requests.includes('uncertain'));
     assert.equal((await client.request('history.list', { session_id: session })).filter((r: any) => r.kind === 'request').length, 2);
+    assert.equal(restored.task.validation.length, 0);
     // The interrupted validation was never restarted by restoration.
-  } finally { client.dispose(); }
+  } finally { await client.close(); }
 });
 
 /** Runtime selection is offline and rejects incompatible or escaping package paths. */

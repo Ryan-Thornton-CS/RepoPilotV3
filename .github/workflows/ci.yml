@@ -1,9 +1,23 @@
 name: Verify RepoPilotV3
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      failed_extensions_only:
+        description: Retry Linux stable and both Windows extension jobs without Python/package/legacy Linux
+        type: boolean
+        default: false
+      artifact_run_id:
+        description: Successful package run to reuse (required for failed-extensions-only)
+        type: string
+        default: ''
 permissions:
   contents: read
+  actions: read
 jobs:
   python:
+    if: ${{ !inputs.failed_extensions_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +38,7 @@ jobs:
       - run: uv run --frozen ruff check src tests tools examples
       - run: uv run --frozen pytest -q
   package:
+    if: ${{ !inputs.failed_extensions_only }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,19 +67,12 @@ jobs:
             dist/repopilotv3-*-release.zip
             dist/SHA256SUMS
   extension:
+    if: ${{ !cancelled() && ((inputs.failed_extensions_only && inputs.artifact_run_id != '') || needs.package.result == 'success') }}
     needs: package
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            editor: '1.85.2'
-          - os: ubuntu-latest
-            editor: stable
-          - os: windows-latest
-            editor: '1.85.2'
-          - os: windows-latest
-            editor: stable
+        include: ${{ fromJSON(inputs.failed_extensions_only && '[{"os":"ubuntu-latest","editor":"stable"},{"os":"windows-latest","editor":"1.85.2"},{"os":"windows-latest","editor":"stable"}]' || '[{"os":"ubuntu-22.04","editor":"1.85.2"},{"os":"ubuntu-latest","editor":"stable"},{"os":"windows-latest","editor":"1.85.2"},{"os":"windows-latest","editor":"stable"}]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +80,8 @@ jobs:
         with:
           name: repopilotv3-vsix
           path: dist
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.artifact_run_id || github.run_id }}
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.12.13'
