@@ -18,6 +18,7 @@ export async function run(): Promise<void> {
     const request = (tool: string, args: any, id: string) => JSON.stringify({ protocol_version: '1.0', request_id: id, tool, arguments: args });
     await client.request('replies.import', { session_id: session, text: 'I will inspect the greeting and add a focused test.\n```json\n' + request('task', { objective: 'Add a greeting test', chat_name: 'Add greeting test' }, 'task') + '\n' + request('todo', { progress: { items: [{ id: 'inspect', text: 'Inspect greeting behavior', status: 'completed' }, { id: 'test', text: 'Add and validate the test', status: 'active' }] } }, 'todo') + '\n```' });
     await client.request('exports.prepare', { session_id: session });
+    await client.request('transfers.record', { session_id: session, text: 'Synthetic reference. '.repeat(2800) });
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     await vscode.commands.executeCommand('repopilotv3.open');
     fs.writeFileSync(process.env.REPOPILOTV3_CAPTURE_READY!, 'ready');

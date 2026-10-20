@@ -1,8 +1,7 @@
 /** Local stdio transport. Connection loss rejects work without replaying any request. */
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { EventEmitter } from 'events';
-import * as fs from 'fs';
-import * as path from 'path';
+import { samePath } from './paths';
 
 /** Backend compatibility information returned before the panel performs management work. */
 export interface BackendHello {
@@ -55,8 +54,7 @@ export class BackendClient extends EventEmitter {
     const timeout = setTimeout(() => this.fail(new Error('Backend handshake timed out; check Output → RepoPilotV3 and the bundled runtime.')), 20000);
     try {
       const hello = await this.request('hello');
-      const normalize = (value: string): string => process.platform === 'win32' ? path.resolve(value).toLowerCase() : path.resolve(value);
-      if (hello.bridge_version !== '1.0' || !/^0\.2\./.test(hello.backend_version) || typeof hello.workspace !== 'string' || normalize(hello.workspace) !== normalize(fs.realpathSync(this.root))) {
+      if (hello.bridge_version !== '1.0' || !/^0\.2\./.test(hello.backend_version) || typeof hello.workspace !== 'string' || !samePath(hello.workspace, this.root)) {
         throw new Error('Incompatible backend: reinstall the matching VSIX or check your custom Python override.');
       }
       this.hello = hello;

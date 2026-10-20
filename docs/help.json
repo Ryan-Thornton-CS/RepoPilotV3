@@ -10,6 +10,12 @@
     "alt": "Numbered project navigation and session controls using synthetic content."
   },
   {
+    "title": "Menus and keyboard shortcuts",
+    "text": "Settings opens directly below the cogwheel and scrolls within the available space. Escape dismisses Settings, the session drawer, composer actions, TODO and context upload checklist, returning focus to the opening control. Clicking outside also dismisses menus. Only one custom menu stays open at a time; Escape never submits text or stops a command.",
+    "image": "images/settings-guide.png",
+    "alt": "Settings anchored below the cogwheel, with the menu and opening button outlined in red."
+  },
+  {
     "title": "Send, Paste + Run and copying",
     "text": "Send detects plain or fenced protocol requests and executes them through the same parser as Paste + Run. Ordinary prose is prepared for the WebUI. Malformed requests return correction errors. Run as model reply imports textbox content explicitly. Copy message for WebUI forwards JSON examples without execution. Paste + Run reads the clipboard. Each turn has one Copy button. Background refresh and restoring a chat never copy or execute anything.\n\nPicture: 1 text box; 2 Send; 3 Paste + Run; 4 TODO; 5 context update (estimate alongside); 6 Options.",
     "image": "images/chat-guide.png",
@@ -33,7 +39,7 @@
   },
   {
     "title": "Context estimates and continuation",
-    "text": "The bottom bar shows estimated recorded content against your advisory threshold, not actual remote model usage. Generate handoff saves progress and context. Open a fresh external chat and confirm to create its new local identifier; it shares the task but requires new TODO initialization and command permission."
+    "text": "The circular context indicator fills as recorded estimated tokens increase. Hover or keyboard-focus it for \u201cContext window: % full\u201d and used/limit token counts. This uses the configured advisory limit, not a measured remote model window. Click the circle to change that limit. The ring caps at full while the tooltip still reports usage over 100%. Recorded uploads/messages count once; generation alone adds no usage. Generate handoff saves progress and context. Open a fresh external chat and confirm to create its new local identifier; it shares the task but requires new TODO initialization and command permission."
   },
   {
     "title": "Copilot, MCP and troubleshooting",

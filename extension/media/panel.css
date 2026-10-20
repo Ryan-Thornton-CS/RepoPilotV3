@@ -1,6 +1,6 @@
 :root { color-scheme: light dark; --repopilot-blue: #58a6ff; --repopilot-blue-wash: rgba(56, 139, 253, .10); }
 * { box-sizing: border-box; }
-body { margin: 0; height: 100vh; display: flex; flex-direction: column; color: var(--vscode-foreground); background: var(--vscode-sideBar-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size, 13px); }
+body { margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; color: var(--vscode-foreground); background: var(--vscode-sideBar-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size, 13px); }
 button, input, select, textarea { font: inherit; }
 button { color: var(--vscode-foreground); background: transparent; border: 1px solid transparent; border-radius: 5px; cursor: pointer; padding: 5px 7px; }
 button:hover { background: var(--vscode-toolbar-hoverBackground); }
@@ -46,7 +46,8 @@ textarea { display: block; resize: none; width: 100%; height: 56px; min-height: 
 #warning { padding-top: 3px; }
 .popover { z-index: 10; padding: 10px; position: absolute; left: 8px; right: 8px; bottom: calc(100% + 4px); max-height: 60vh; overflow: auto; border: 1px solid var(--vscode-widget-border); border-radius: 6px; box-shadow: 0 3px 12px var(--vscode-widget-shadow); background: var(--vscode-editorWidget-background); }
 .popover button { text-align: left; }
-#options { position: fixed; top: 40px; right: 8px; left: auto; bottom: auto; width: min(290px, calc(100vw - 16px)); }
+#options-anchor { position: relative; display: flex; flex: none; }
+#options { position: absolute; top: calc(100% + 4px); right: 0; left: auto; bottom: auto; width: min(290px, calc(100vw - 16px)); }
 #options button, #options label, #composer-options button { display: block; width: 100%; padding: 6px; }
 #workspace-root { display: block; padding: 0 6px 6px; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
 #session-drawer { flex: none; max-height: 35vh; overflow: auto; padding: 8px; border-bottom: 1px solid var(--vscode-panel-border); }
@@ -79,3 +80,13 @@ body.vscode-high-contrast button.primary, body.vscode-high-contrast-light button
 .help-topic pre { white-space: pre-wrap; background: var(--vscode-textCodeBlock-background); padding: 8px; }
 .help-topic img { max-width: 100%; height: auto; border: 1px solid var(--vscode-panel-border); }
 #help-search { position: sticky; top: 0; }
+
+#context-meter { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; color: var(--repopilot-blue); }
+#context-meter svg { display: block; transform: rotate(-90deg); }
+#context-meter circle { fill: none; stroke-width: 3; }
+.context-track { stroke: var(--vscode-widget-border, var(--vscode-panel-border, #6b7280)); }
+#context-progress { stroke: currentColor; stroke-linecap: round; }
+#context-meter.context-full { color: var(--vscode-editorWarning-foreground, #d29922); }
+#context-meter:disabled { opacity: .55; cursor: default; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (forced-colors: active) { #context-meter { color: ButtonText; } .context-track { stroke: GrayText; } }

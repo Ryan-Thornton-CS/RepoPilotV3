@@ -66,12 +66,38 @@ class PanelCapture:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(base64.b64decode(screenshot["data"]))
 
+    async def validate_panel(self, root: Path) -> None:
+        """Check actual browser geometry, SVG progress and Escape dismissal before capture."""
+        script = """(() => {
+          const d=document.querySelector('iframe').contentDocument;
+          const cog=d.getElementById('options-toggle'), menu=d.getElementById('options');
+          cog.click();
+          const buttonRect=cog.getBoundingClientRect(), menuRect=menu.getBoundingClientRect();
+          const below=menuRect.top>=buttonRect.bottom && menuRect.bottom<=d.defaultView.innerHeight;
+          const fits=menuRect.left>=0 && menuRect.right<=d.defaultView.innerWidth;
+          d.dispatchEvent(new d.defaultView.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+          const dismissed=menu.hidden && d.activeElement===cog && cog.getAttribute('aria-expanded')==='false';
+          const meter=d.getElementById('context-meter'), ring=d.getElementById('context-progress');
+          return {below, fits, dismissed, menu_top:menuRect.top, button_bottom:buttonRect.bottom,
+            circle:meter.querySelectorAll('svg').length===1,
+            tooltip:meter.title, progress:Number(ring.getAttribute('stroke-dashoffset'))};
+        })()"""
+        result = await self.call(self.frame, "Runtime.evaluate", {"expression": script, "returnByValue": True})
+        checks = result["result"]["value"]
+        if not checks["below"] or not checks["fits"] or not checks["dismissed"] or not checks["circle"] or not 0 <= checks["progress"] <= 100:
+            raise RuntimeError("Panel geometry or interaction validation failed: " + json.dumps(checks))
+        (root / ".tools/ui-capture/checks.json").write_text(json.dumps(checks, indent=2), "utf-8")
+
     async def capture(self, root: Path) -> None:
-        """Produce the two versioned help figures from the same synthetic panel."""
+        """Produce updated help figures and verify the actual synthetic panel before saving."""
+        await self.validate_panel(root)
         await self.annotate(["#top-tabs", ".project-bar", "#project-tabs", "header", "#session-drawer"], True)
         await self.save(root / "docs/images/projects-guide.png")
         await self.annotate(["#request", "#send", "#paste", "#todo-toggle", "#update-context", "#options-toggle"], False)
         await self.save(root / "docs/images/chat-guide.png")
+        await self.call(self.frame, "Runtime.evaluate", {"expression": "document.querySelector('iframe').contentDocument.getElementById('options-toggle').click()"})
+        await self.annotate(["#options-toggle", "#options"], False)
+        await self.save(root / "docs/images/settings-guide.png")
 
 
 async def launch_capture(root: Path) -> None:

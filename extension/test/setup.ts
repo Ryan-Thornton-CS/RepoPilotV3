@@ -169,3 +169,24 @@ test('settings groups retain hover help and expose setup without a session', () 
   assert.ok(enable.title); enable.click(); assert.equal(sent.at(-1).action, 'mcpEnable');
   dom.window.close();
 });
+
+
+/** A parent config targeting an alias is still a duplicate, and server names stay physical. */
+test('MCP duplicate detection and labels share canonical repository identities', async t => {
+  const { base, root, manager } = fixture();
+  const alias = path.join(base, 'Alias A');
+  try { fs.symlinkSync(root, alias, process.platform === 'win32' ? 'junction' : 'dir'); }
+  catch { manager.dispose(); t.skip('Filesystem does not permit directory aliases'); return; }
+  try {
+    assert.equal(repositoryServerName(alias), repositoryServerName(root));
+    fs.writeFileSync(path.join(base, '.mcp.json'), JSON.stringify({ mcpServers: { repopilot: {
+      command: 'existing', args: ['-m', 'repopilotv3', '--repo', alias] } } }));
+    assert.equal((await manager.existing(root)).length, 1);
+    responses = ['Keep existing configuration']; await manager.enable(root);
+    assert.equal(manager.registrations().length, 0);
+    responses = ['Switch to extension-managed setup']; await manager.enable(alias);
+    const definitions = await manager.definitions();
+    assert.equal(definitions.length, 1);
+    assert.equal(definitions[0].label, repositoryServerName(root));
+  } finally { manager.dispose(); fs.rmSync(base, { recursive: true, force: true }); }
+});

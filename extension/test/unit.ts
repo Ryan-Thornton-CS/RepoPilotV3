@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { panelMessage, validSourcePath, requireTrusted } from '../src/protocol';
+import { canonicalPath, samePath } from '../src/paths';
 import { BackendClient } from '../src/backend';
 
 const python = process.env.REPOPILOTV3_PYTHON || path.resolve(__dirname, '../../../.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
@@ -328,19 +329,19 @@ test('new session has no dialogs, every file opens a permanent diff, and stale a
   const projectState = new Map<string, any>();
   panel.context = { workspaceState: { get: (key: string, fallback: any) => projectState.get(key) ?? fallback, update: async (key: string, value: any) => { projectState.set(key, value); if (key === 'workspace') saved = value; } } };
   panel.projects = new (require('../src/projects').ProjectRegistry)(panel.context.workspaceState);
-  panel.restore = async () => { restored++; assert.equal(panel.folder.uri.fsPath, first); };
+  panel.restore = async () => { restored++; assert.equal(panel.folder.uri.fsPath, canonicalPath(first)); };
   panel.folder = { uri: fileUri(root), name: 'Parent' }; panel.selected = 'old-project-chat';
   panel.client = { close: async () => { closed++; } }; panel.refreshing = true;
   chosen = first;
   await panel.chooseWorkspace();
-  assert.equal(saved, fileUri(first).toString()); assert.equal(closed, 1); assert.equal(restored, 1);
+  assert.equal(saved, fileUri(canonicalPath(first)).toString()); assert.equal(closed, 1); assert.equal(restored, 1);
   assert.equal(panel.selected, undefined); assert.equal(panel.entries.size, 0);
   assert.equal(changes.at(-1).type, 'workspaceChanged');
   assert.equal(panel.switching, false);
   chosen = undefined; await panel.chooseWorkspace(); assert.equal(closed, 1);
   chosen = second; panel.jobs = 1;
   await assert.rejects(panel.chooseWorkspace(), /current work|current tool/);
-  assert.equal(panel.folder.uri.fsPath, first);
+  assert.equal(panel.folder.uri.fsPath, canonicalPath(first));
   panel.jobs = 0;
   let transfers = 0;
   client.request = async (method: string) => {
@@ -382,7 +383,9 @@ test('consolidated footer, mode changes, pending approvals and safe model prose'
     history: [{ sequence: 1, id: 'model:1', kind: 'model', body: { text: '<img src=x onerror=bad()>\n```json\n{"x":1}\n```' } }] } }));
   assert.equal(document.getElementById('mode'), null);
   assert.match(document.getElementById('update-context').textContent, /1/);
-  assert.match(document.getElementById('context-meter').textContent, /18k\/40k/);
+  assert.match(document.getElementById('context-meter').title, /Context window: 45% full/);
+  assert.match(document.getElementById('context-meter').title, /18,000\/40,000 tokens used/);
+  assert.equal(document.getElementById('context-progress').getAttribute('stroke-dashoffset'), '55');
   assert.equal(document.querySelectorAll('img').length, 0);
   document.querySelector('#pending button').click();
   assert.equal(sent.at(-1).action, 'resolve'); assert.equal(sent.at(-1).replyId, 'R');
@@ -475,7 +478,7 @@ test('backend canonicalizes a workspace alias without weakening root binding', a
   const client = new BackendClient(alias, python, '', () => {});
   try {
     const hello = await client.connect();
-    assert.equal(path.normalize(hello.workspace).toLowerCase(), fs.realpathSync(root).toLowerCase());
+    assert.equal(canonicalPath(hello.workspace).toLowerCase(), canonicalPath(root).toLowerCase());
     await client.request('setup');
     assert.equal((await client.request('sessions.create')).session.name, 'New session');
   } finally { client.dispose(); }
@@ -532,5 +535,99 @@ test('project navigation, searchable help, context file actions and copy-only pr
   assert.equal(sent.at(-1).action, 'contextFile'); assert.equal(sent.at(-1).path, 'map.md');
   assert.equal(d.getElementById('mode'), null);
   assert.equal(sent.filter(value => ['run', 'send', 'copy'].includes(value.action)).length, 0);
+  dom.window.close();
+});
+
+
+/** Native identity, rather than Node's lexical spelling, must own existing and pending files. */
+test('native path identities cover short-name aliases and keep repository boundaries', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'RepoPilot physical identity-'));
+  const root = path.join(base, 'Project Long Name');
+  const other = path.join(base, 'Other Project');
+  const short = path.join(base, 'PROJEC~1');
+  fs.mkdirSync(root); fs.mkdirSync(other);
+  const native = fs.realpathSync.native;
+  (fs.realpathSync as any).native = (value: string) => value === short ? native(root) : native(value);
+  try {
+    assert.equal(canonicalPath(short), native(root));
+    assert.equal(samePath(short, root), true);
+    assert.equal(samePath(short, other), false);
+    assert.equal(samePath(path.join(short, 'new.py'), path.join(root, 'new.py')), true);
+  } finally { (fs.realpathSync as any).native = native; fs.rmSync(base, { recursive: true, force: true }); }
+});
+
+
+/** All transient menus dismiss with Escape, restore focus, and keep their own controls reachable. */
+test('menus anchor below the cogwheel and Escape closes every surface without executing work', () => {
+  const { JSDOM } = require('jsdom');
+  const source = fs.readFileSync(path.resolve(__dirname, '../../src/extension.ts'), 'utf8');
+  const html = source.slice(source.indexOf('<!DOCTYPE html>'), source.indexOf('</html>') + 7);
+  const dom = new JSDOM(html.replace(/<script[^>]*src[^>]*><\/script>/g, ''), { runScripts: 'outside-only' });
+  const sent: any[] = [];
+  dom.window.acquireVsCodeApi = () => ({ postMessage: (value: any) => sent.push(value), getState: () => undefined, setState: () => {} });
+  dom.window.eval(fs.readFileSync(path.resolve(__dirname, '../../media/panel.js'), 'utf8'));
+  const d = dom.window.document;
+  assert.equal(d.getElementById('options').parentElement.id, 'options-anchor');
+  assert.equal(d.getElementById('options-toggle').parentElement.id, 'options-anchor');
+  const css = fs.readFileSync(path.resolve(__dirname, '../../media/panel.css'), 'utf8');
+  assert.match(css, /#options \{ position: absolute; top: calc\(100% \+ 4px\)/);
+  const cog = d.getElementById('options-toggle');
+  cog.getBoundingClientRect = () => ({ bottom: 180 });
+  for (const [control, panel] of [['options-toggle', 'options'], ['sessions-toggle', 'session-drawer'], ['composer-menu', 'composer-options'], ['todo-toggle', 'todo-panel']]) {
+    const opener = d.getElementById(control); opener.focus(); opener.click();
+    assert.equal(d.getElementById(panel).hidden, false);
+    assert.equal(opener.getAttribute('aria-expanded'), 'true');
+    if (panel === 'options') assert.ok(parseFloat(d.getElementById(panel).style.maxHeight) <= dom.window.innerHeight - 192);
+    d.getElementById(panel).querySelector('button,input,strong')?.focus();
+    const escape = new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    d.dispatchEvent(escape);
+    assert.equal(escape.defaultPrevented, true);
+    assert.equal(d.getElementById(panel).hidden, true);
+    assert.equal(opener.getAttribute('aria-expanded'), 'false');
+    assert.equal(d.activeElement, opener);
+  }
+  dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { type: 'packages' } }));
+  d.getElementById('freshness').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(d.getElementById('packages').hidden, true);
+  assert.equal(d.activeElement.id, 'update-context');
+  cog.click(); d.getElementById('title').click(); assert.equal(d.getElementById('options').hidden, true);
+  cog.click(); cog.click(); assert.equal(d.getElementById('options').hidden, true);
+  d.getElementById('request').focus();
+  const escape = new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  d.getElementById('request').dispatchEvent(escape);
+  assert.equal(escape.defaultPrevented, false);
+  assert.equal(d.activeElement.id, 'request');
+  assert.deepEqual(sent.map(value => value.action), ['ready']);
+  dom.window.close();
+});
+
+/** Ring fill is bounded, while hover/accessibility preserve actual estimates above the advisory limit. */
+test('context ring shows current estimates, changed limits, overflow and session isolation', () => {
+  const { JSDOM } = require('jsdom');
+  const source = fs.readFileSync(path.resolve(__dirname, '../../src/extension.ts'), 'utf8');
+  const html = source.slice(source.indexOf('<!DOCTYPE html>'), source.indexOf('</html>') + 7);
+  const dom = new JSDOM(html.replace(/<script[^>]*src[^>]*><\/script>/g, ''), { runScripts: 'outside-only' });
+  const sent: any[] = [];
+  dom.window.acquireVsCodeApi = () => ({ postMessage: (value: any) => sent.push(value), getState: () => undefined, setState: () => {} });
+  dom.window.eval(fs.readFileSync(path.resolve(__dirname, '../../media/panel.js'), 'utf8'));
+  const d = dom.window.document;
+  const meter = d.getElementById('context-meter'), progress = d.getElementById('context-progress');
+  const render = (tokens: number, limit: number, id = 'A') => dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: {
+    type: 'state', selected: id, sessions: [], history: [], status: { session: {}, task: null, draft: '', checklist: [],
+      metrics: { observed_estimated_tokens: tokens, context_limit: limit, exchanges: 0 } } } }));
+  assert.equal(meter.disabled, true);
+  render(18000, 40000);
+  assert.equal(progress.getAttribute('stroke-dashoffset'), '55');
+  assert.match(meter.title, /Context window: 45% full\n18,000\/40,000 tokens used/);
+  assert.match(meter.title, /actual remote usage is unknown/);
+  assert.equal(meter.getAttribute('aria-label'), meter.title);
+  meter.click(); assert.equal(sent.at(-1).action, 'limit');
+  render(18000, 20000); assert.equal(progress.getAttribute('stroke-dashoffset'), '10');
+  render(50000, 40000); assert.equal(progress.getAttribute('stroke-dashoffset'), '0');
+  assert.match(meter.title, /125% full/); assert.ok(meter.classList.contains('context-full'));
+  render(0, 40000, 'B'); assert.equal(progress.getAttribute('stroke-dashoffset'), '100');
+  assert.equal(progress.getAttribute('stroke-opacity'), '0'); assert.equal(meter.classList.contains('context-full'), false);
+  render(NaN, 0, 'B'); assert.match(meter.title, /0% full/);
+  assert.equal(d.querySelectorAll('#context-meter svg').length, 1);
   dom.window.close();
 });

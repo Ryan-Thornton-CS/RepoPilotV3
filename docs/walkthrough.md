@@ -137,3 +137,8 @@ The **Documentation** tab contains these illustrated controls and searchable sum
 6. Grouped Options, including editable role prompts.
 
 These are annotated captures of the actual extension using synthetic source and session content.
+
+
+The **Settings** menu is anchored below its cogwheel. Press **Escape** to close any custom menu (including the session drawer, composer actions, TODO and upload checklist); focus returns to its opening control. Clicking outside closes menus too. Escape does not stop commands or send messages.
+
+The circular **context indicator** fills against the selected chat’s configured advisory limit. Hover or focus it to see **Context window: % full** and **used/limit tokens used**. These are locally recorded estimates, not measured WebUI usage. Clicking the circle changes the limit. At/above the limit the ring stays full while hover text shows the actual percentage, including values over 100%.

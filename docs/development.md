@@ -14,7 +14,7 @@ npm ci --prefix extension --ignore-scripts
 uv run --frozen --group dev python tools/build.py
 ```
 
-This builds the pure-Python backend internally, stages CPython and hash-pinned dependencies for Windows x64 and Linux x64, compiles the extension, and writes `dist/repopilotv3-0.2.12.vsix`. `npm run package --prefix extension` invokes the same build. There is no publication or workspace harness installation.
+This builds the pure-Python backend internally, stages CPython and hash-pinned dependencies for Windows x64 and Linux x64, compiles the extension, and writes `dist/repopilotv3-0.2.13.vsix`. `npm run package --prefix extension` invokes the same build. There is no publication or workspace harness installation.
 
 `uv.lock` and `extension/package-lock.json` pin Python/Node dependencies. `tools/runtime-lock.json` pins Python build URLs, hashes and the uv metadata release. uv verifies standalone runtime downloads against its pinned metadata. pip installs only hash-verified binary wheels; target-specific markers are evaluated explicitly before cross-platform installation. Build caches live under `.tools/bundle/`; staging lives under ignored `extension/backend`, `extension/docs`, and `extension/harness`.
 
@@ -57,3 +57,6 @@ The VSIX bundles the pinned Microsoft jsonc-parser runtime and license under out
 After verifying the full VSIX, run `uv run --frozen python tools/release.py`. It writes the versioned `*-release.zip` and outer `dist/SHA256SUMS`. The ZIP contains the VSIX, loose `.github` workspace harness, both MCP configuration formats, complete backend sources/metadata/locks, license and setup notes. Internal checksums cover every payload member. Inputs are explicitly selected; private state and caches are excluded. CI uploads both artifacts on its existing triggers without publishing releases or Marketplace extensions. Version selection comes from project metadata instead of a hardcoded extraction filename.
 
 `docs/help.json` supplies data-only offline help. Its PNG figures are real panel captures with synthetic content and numbered red outlines. To refresh them on Linux, explicitly provision a cached test editor, compile the extension and stage its bundled backend/docs, then run `uv run --frozen python tools/capture_ui.py --launch`. The tool connects only to an explicitly launched local Chromium debugging endpoint; it does not automate external WebUIs. `extension/test/capture.ts` seeds disposable source and task records under ignored `.tools/`. No screenshots of private projects are needed.
+
+
+Windows CI compares native filesystem identities, including 8.3 and junction aliases, across the Python handshake, MCP duplicate detection and unsaved-buffer checks. Regression tests also exercise LF and CRLF rollback independently and decode shipped Markdown explicitly as UTF-8. Matrix fail-fast is disabled so a Windows failure does not cancel independent Linux/editor checks. The package job uploads the full VSIX and distribution ZIP; a failed verification matrix can coexist with those downloadable artifacts and must still be fixed before treating the run as passing.

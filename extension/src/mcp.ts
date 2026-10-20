@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { canonicalPath, pathIdentity, samePath } from './paths';
 import { backendPython } from './runtime';
 import { requireTrusted } from './protocol';
 import { configuration, changeProperty, readConfiguration, applyConfiguration, ConfigurationEdit } from './configuration';
@@ -21,7 +22,7 @@ interface Existing { file: string; keys: string[]; name: string; definition: any
 
 /** Stable per-project server names also serve as generated agent tool-set prefixes. */
 export function repositoryServerName(root: string): string {
-  const normalized = process.platform === 'win32' ? path.resolve(root).toLowerCase() : path.resolve(root);
+  const normalized = pathIdentity(root);
   return 'repopilotv3-' + crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 10);
 }
 
@@ -61,7 +62,8 @@ export class McpIntegration implements vscode.Disposable {
   private async save(rows: RepositoryRegistration[]): Promise<void> { await this.context.workspaceState.update('mcp.repositories', rows); this.changed.fire(); }
 
   private candidates(root: string): string[] {
-    const enclosing = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(root))?.uri.fsPath ?? root;
+    root = canonicalPath(root);
+    const enclosing = canonicalPath(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(root))?.uri.fsPath ?? root);
     const result: string[] = [];
     let current = root;
     while (true) {
@@ -75,6 +77,7 @@ export class McpIntegration implements vscode.Disposable {
 
   /** Inspect selected/enclosing workspace definitions, including comments and trailing commas. */
   public async existing(root: string): Promise<Existing[]> {
+    root = canonicalPath(root);
     const result: Existing[] = [];
     for (const file of this.candidates(root)) {
       const text = await readConfiguration(file); if (text === null) { continue; }
@@ -89,7 +92,7 @@ export class McpIntegration implements vscode.Disposable {
         const repo = index >= 0 ? item.args[index + 1] : undefined;
         const base = path.basename(path.dirname(file)) === '.vscode' ? path.dirname(path.dirname(file)) : path.dirname(file);
         const resolved = typeof repo === 'string' && !repo.includes('${') ? path.resolve(base, repo) : repo === '${workspaceFolder}' ? base : undefined;
-        const same = resolved === undefined || (process.platform === 'win32' ? resolved.toLowerCase() === root.toLowerCase() : resolved === root);
+        const same = resolved === undefined || samePath(resolved, root);
         if (same) { result.push({ file, keys, name, definition }); }
       }
     }
@@ -102,7 +105,7 @@ export class McpIntegration implements vscode.Disposable {
     const result: Definition[] = [];
     for (const row of this.registrations().filter(item => item.mode === 'provider')) {
       try {
-        if ((await this.existing(row.root)).some(entry => !row.portableFiles?.includes(entry.file)) || !(await fs.stat(row.root)).isDirectory()) { continue; }
+        if ((await this.existing(row.root)).some(entry => !row.portableFiles?.some(file => samePath(file, entry.file))) || !(await fs.stat(row.root)).isDirectory()) { continue; }
         const python = await backendPython('bundled', this.context.extensionUri.fsPath);
         const definition = new this.api.McpStdioServerDefinition!(row.label, python, this.arguments(row.root, row.state),
           { PYTHONUTF8: '1', PYTHONDONTWRITEBYTECODE: '1' }, this.context.extension.packageJSON.version);
@@ -118,7 +121,7 @@ export class McpIntegration implements vscode.Disposable {
 
   /** Enable one selected project only after duplicate handling and any concrete file preview. */
   public async enable(root: string, state = ''): Promise<void> {
-    requireTrusted(vscode.workspace.isTrusted); root = await fs.realpath(root);
+    requireTrusted(vscode.workspace.isTrusted); root = canonicalPath(root);
     const found = await this.existing(root);
     let portableFiles: string[] | undefined;
     if (found.length) {
@@ -158,7 +161,7 @@ export class McpIntegration implements vscode.Disposable {
       await applyConfiguration([...edits.values()], this.context.globalStorageUri.fsPath);
     }
     requireTrusted(vscode.workspace.isTrusted);
-    await this.save([...this.registrations().filter(row => row.root !== root), { root, state, label, mode, ...(file ? { file, signature } : {}), ...(portableFiles ? { portableFiles } : {}) }]);
+    await this.save([...this.registrations().filter(row => !samePath(row.root, root)), { root, state, label, mode, ...(file ? { file, signature } : {}), ...(portableFiles ? { portableFiles } : {}) }]);
     void vscode.window.showInformationMessage(`RepoPilot MCP enabled for ${root}. Enable its tools in your chat tool picker; VS Code retains its normal trust/start controls.`);
   }
 

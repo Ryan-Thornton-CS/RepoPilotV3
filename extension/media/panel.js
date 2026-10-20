@@ -259,10 +259,29 @@ function renderPending(pending) {
   }
 }
 
+/** Render observed estimates against the configured budget; remote model capacity is unknown. */
+function contextMeter(metrics = {}, active = false) {
+  const tokens = Number.isFinite(metrics.observed_estimated_tokens) ? Math.max(0, metrics.observed_estimated_tokens) : 0;
+  const limit = Number.isFinite(metrics.context_limit) && metrics.context_limit > 0 ? metrics.context_limit : 40000;
+  const percent = Math.round(tokens / limit * 1000) / 10;
+  const meter = byId('context-meter');
+  const label = `Context window: ${percent}% full\n${tokens.toLocaleString()}/${limit.toLocaleString()} tokens used`;
+  const tooltip = label + '\nEstimated recorded content against your configured advisory limit; actual remote usage is unknown.' +
+    (active ? '\nClick to change the limit.' : '\nSelect a session to track context.');
+  meter.disabled = !active;
+  meter.classList.toggle('context-full', tokens >= limit);
+  meter.dataset.percent = String(percent);
+  meter.setAttribute('aria-label', tooltip);
+  byId('context-description').textContent = label;
+  byId('context-progress').setAttribute('stroke-dashoffset', String(100 - Math.min(100, percent)));
+  byId('context-progress').setAttribute('stroke-opacity', tokens > 0 ? '1' : '0');
+  describe(meter, tooltip);
+}
+
 /** Restore history and bottom-bar state without overwriting a draft during background refresh. */
 function render(message) {
   const changed = session !== message.selected;
-  if (changed) { if (!firstRender) saveDraft(); entries.clear(); streams.clear(); }
+  if (changed) { if (!firstRender) saveDraft(); entries.clear(); streams.clear(); closeMenus(); }
   session = message.selected; saved.session = session; vscode.setState(saved);
   const choices = byId('sessions'); choices.replaceChildren();
   for (const chat of message.sessions) {
@@ -283,8 +302,8 @@ function render(message) {
     byId('entries').replaceChildren(node('p', 'Start a new session or select a saved chat. First-time project setup: ⚙ → Copy project prompt; paste it into WebUI project instructions once.', 'empty'));
     byId('context-files').replaceChildren(); byId('context-freshness').textContent = 'Select a session to view its package.';
     for (const id of ['pending', 'items', 'checklist']) byId(id).replaceChildren();
-    for (const id of ['packages', 'todo-panel', 'stop']) byId(id).hidden = true;
-    byId('todo-toggle').textContent = 'TODO 0/0'; byId('context-meter').textContent = 'Context ~0/40k';
+    closeMenus(); byId('stop').hidden = true;
+    byId('todo-toggle').textContent = 'TODO 0/0'; contextMeter();
     byId('update-context').textContent = 'Update context'; byId('warning').textContent = '';
     byId('job').textContent = 'Local tools · no connected model';
     return;
@@ -302,10 +321,7 @@ function render(message) {
   byId('todo-toggle').textContent = `TODO ${items.filter(i => i.status === 'completed').length}/${items.length}`;
   byId('items').replaceChildren();
   for (const item of items) byId('items').append(node('li', `${item.status === 'completed' ? '☑' : '☐'} ${item.text} · ${item.status} · ${item.reported_by || 'model'} / unverified`));
-  const tokens = status.metrics.observed_estimated_tokens;
-  const limit = status.metrics.context_limit || 40000;
-  byId('context-meter').textContent = `Context ~${Math.round(tokens / 100) / 10}k/${Math.round(limit / 100) / 10}k`;
-  describe(byId('context-meter'), `Show recorded token estimates; click to adjust the advisory threshold. ${tokens.toLocaleString()} locally observed estimated tokens. Low confidence; remote usage is unknown. ${status.metrics.exchanges} recorded exchanges.`);
+  contextMeter(status.metrics, true);
   const warnings = [];
   if (status.session.archived) warnings.push('Archived: resume through ⚙ before continuing.');
   if (status.task?.checkpoint_required) warnings.push('Update TODO after the applied change or failed validation.');
@@ -335,16 +351,65 @@ function render(message) {
   }
 }
 
-/** Toggle one compact surface without creating additional global toolbar rows. */
-function toggle(id, control) {
-  const panel = byId(id); const wasHidden = panel.hidden;
-  for (const other of document.querySelectorAll('.popover')) if (other !== panel) other.hidden = true;
-  panel.hidden = !wasHidden;
-  if (control) byId(control).setAttribute('aria-expanded', String(!panel.hidden));
+const menuControls = {
+  options: 'options-toggle', 'session-drawer': 'sessions-toggle',
+  'composer-options': 'composer-menu', 'todo-panel': 'todo-toggle', packages: 'update-context'
+};
+let menuTrigger;
+
+/** Close transient menus consistently, preserving the initiating button for Escape focus. */
+function closeMenus(restoreFocus = false) {
+  const open = Object.keys(menuControls).some(id => !byId(id).hidden);
+  for (const [id, control] of Object.entries(menuControls)) {
+    byId(id).hidden = true;
+    byId(control).setAttribute('aria-expanded', 'false');
+  }
+  if (open && restoreFocus && menuTrigger) byId(menuTrigger).focus();
+  return open;
 }
+
+/** Constrain settings to the space beneath its actual cogwheel, including resized layouts. */
+function sizeSettings() {
+  if (byId('options').hidden) return;
+  const bounds = byId('options-toggle').getBoundingClientRect();
+  const available = Math.max(0, window.innerHeight - bounds.bottom - 12);
+  byId('options').style.maxWidth = `${Math.max(0, (Number.isFinite(bounds.right) ? bounds.right : window.innerWidth) - 8)}px`;
+  byId('options').style.maxHeight = `${Math.min(window.innerHeight * 0.6, available)}px`;
+}
+
+/** Open one anchored menu and update its accessible disclosure state. */
+function openMenu(id, control = menuControls[id]) {
+  closeMenus();
+  byId(id).hidden = false;
+  menuTrigger = control;
+  byId(control).setAttribute('aria-expanded', 'true');
+  sizeSettings();
+}
+
+/** Toggle one compact surface without covering its own initiating control. */
+function toggle(id, control = menuControls[id]) {
+  const wasHidden = byId(id).hidden;
+  closeMenus();
+  if (wasHidden) openMenu(id, control);
+}
+
+// Escape dismisses custom menus only; it never cancels work or submits the composer.
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && closeMenus(true)) {
+    event.preventDefault(); event.stopPropagation();
+  }
+});
+document.addEventListener('click', event => {
+  const within = Object.entries(menuControls).some(([id, control]) => !byId(id).hidden &&
+    (byId(id).contains(event.target) || byId(control).contains(event.target)));
+  if (!within) closeMenus();
+});
+window.addEventListener('resize', sizeSettings);
+if (window.ResizeObserver) new ResizeObserver(sizeSettings).observe(byId('options-anchor'));
 
 /** Switch accessible tab groups without executing requests or copying content. */
 function tabs(group, selected, panels) {
+  closeMenus();
   for (const [buttonId, panelId] of panels) {
     byId(buttonId).setAttribute('aria-selected', String(buttonId === selected));
     byId(buttonId).tabIndex = buttonId === selected ? 0 : -1;
@@ -390,14 +455,13 @@ byId('help-search').addEventListener('input', help);
 byId('sessions-toggle').addEventListener('click', () => toggle('session-drawer', 'sessions-toggle'));
 byId('options-toggle').addEventListener('click', () => toggle('options', 'options-toggle'));
 byId('todo-toggle').addEventListener('click', () => toggle('todo-panel', 'todo-toggle'));
-byId('composer-menu').addEventListener('click', () => toggle('composer-options'));
+byId('composer-menu').addEventListener('click', () => toggle('composer-options', 'composer-menu'));
 document.querySelectorAll('[data-action]').forEach(element => {
   if (descriptions[element.dataset.action]) describe(element, descriptions[element.dataset.action]);
   element.addEventListener('click', () => {
   const action = element.dataset.action; saveDraft();
   send(action, action === 'roleCopy' ? { text: element.dataset.role } : ['run', 'send', 'forward', 'note'].includes(action) ? { text: byId('request').value } : {});
-  if (action !== 'stop') byId('options').hidden = true;
-  byId('composer-options').hidden = true;
+  if (action !== 'stop') closeMenus();
   });
 });
 for (const [id, text] of Object.entries({
@@ -467,8 +531,7 @@ window.addEventListener('message', event => {
     projectRoot(message.workspace);
   }
   if (message.type === 'packages') {
-    for (const other of document.querySelectorAll('.popover')) other.hidden = true;
-    byId('packages').hidden = false;
+    openMenu('packages');
   }
   if (message.type === 'error') {
     const article = node('article', undefined, 'message error');
@@ -494,4 +557,5 @@ window.addEventListener('message', event => {
   }
 });
 resizeComposer();
+contextMeter();
 send('ready');

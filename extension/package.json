@@ -2,7 +2,7 @@
   "name": "repopilotv3",
   "displayName": "RepoPilotV3",
   "description": "Local manual WebUI sessions, reviewed patches and repository context; no model connection.",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "publisher": "repopilot-local",
   "license": "MIT",
   "engines": {

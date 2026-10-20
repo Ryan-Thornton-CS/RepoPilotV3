@@ -2,7 +2,7 @@
 
 ## Install the single VSIX
 
-Choose **Extensions: Install from VSIX**, select `repopilotv3-0.2.12.vsix`, and reload VS Code if prompted. Open a trusted local folder and click RepoPilot's icon. The backend initializes private state automatically. No external Python, pip, uv, installer, internet connection or account is needed.
+Choose **Extensions: Install from VSIX**, select `repopilotv3-0.2.13.vsix`, and reload VS Code if prompted. Open a trusted local folder and click RepoPilot's icon. The backend initializes private state automatically. No external Python, pip, uv, installer, internet connection or account is needed.
 
 The same VSIX contains CPython 3.12.14 and fully installed dependencies for **Windows x64** and **Linux/WSL x64**. Linux needs a glibc-based x64 distribution compatible with the bundled manylinux2014 wheels; Alpine/musl is unsupported. macOS and ARM are not included. Install in the **WSL/remote extension host** when working in a Remote WSL window. The extension selects that host's runtime, not the UI computer's runtime.
 
@@ -64,7 +64,7 @@ The context meter shows observed estimates against a per-chat workflow threshold
 
 Session replies display before routine package refresh and clipboard/diff work. Active-task packages refresh in the background; blank chats avoid automatic indexing. **Update context** always performs an explicit refresh. If opening a session is slow, inspect **Output → RepoPilotV3**: backend startup and session restoration have timings; requests over 500 ms show their method and elapsed time. Client timings include queue/transport delays; handler timings exclude the queue. Slow clipboard copies are reported separately. No message bodies are logged. First source indexing, Roslyn/MSBuild loading, remote filesystems and editor/OS startup can still take time; timings identify which part is waiting.
 
-Version 0.2.12 shares backend initialization across overlapping panel events and waits for normal writer contention. Background context refresh quietly defers when another writer is active. Session deletion uses a separate management queue and does not wait for context exports. Status reads only the snapshot identity rather than parsing historical analysis. Reconnect waits for its previous backend to exit; it never replays an edit or command. Open the actual source folder rather than your entire home directory. Editor extensions, caches, credentials and user dependency stores are excluded from scanning; parent-folder scans also honor nested repositories' Git ignore files.
+Version 0.2.13 shares backend initialization across overlapping panel events and waits for normal writer contention. Background context refresh quietly defers when another writer is active. Session deletion uses a separate management queue and does not wait for context exports. Status reads only the snapshot identity rather than parsing historical analysis. Reconnect waits for its previous backend to exit; it never replays an edit or command. Open the actual source folder rather than your entire home directory. Editor extensions, caches, credentials and user dependency stores are excluded from scanning; parent-folder scans also honor nested repositories' Git ignore files.
 
 After upgrading, reload **all VS Code windows using RepoPilot** so an old backend cannot keep indexing the same workspace. If a long operation still holds the writer for over 30 seconds, the foreground message explains how to finish or close that older window and retry. Do not delete `writer.lock`: operating-system ownership releases it when its process exits. Status and history stay available while work is queued.
 
@@ -105,3 +105,8 @@ Use **Projects → + Project** to add any existing folder, including a nested pr
 Manual modes have been replaced by **Options → Prompts**. Copy an independent role prompt, or edit `.repopilotv3/prompts/{planning,asking,implementation,review}.md` (under custom private state when configured). Save before copying. These files are authoritative and upgrades do not overwrite them. **Reset prompt to default** confirms the change and saves previous bytes under `prompt-recovery/`. Back up both directories with the project’s private state; source retrieval excludes them. The static Copilot agent files remain independent.
 
 **Reset checklist** archives task items in revision history and preserves objective, requirements and validation. It affects continuation chats sharing that task, invalidates their TODO readiness, and prepares a message asking the model for a replacement checklist. Use new request IDs when rebuilding it. This is a local action, not a model tool.
+
+
+The **Settings** menu is anchored below its cogwheel. Press **Escape** to close any custom menu (including the session drawer, composer actions, TODO and upload checklist); focus returns to its opening control. Clicking outside closes menus too. Escape does not stop commands or send messages.
+
+The circular **context indicator** fills against the selected chat’s configured advisory limit. Hover or focus it to see **Context window: % full** and **used/limit tokens used**. These are locally recorded estimates, not measured WebUI usage. Clicking the circle changes the limit. At/above the limit the ring stays full while hover text shows the actual percentage, including values over 100%.

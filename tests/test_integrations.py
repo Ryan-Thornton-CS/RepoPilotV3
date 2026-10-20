@@ -23,10 +23,10 @@ from repopilotv3.repository.service import RepositoryTools
 def test_static_harness_agents_permissions_and_budgets():
     """Keep substantive static agents and the four-tool native Copilot boundary."""
     harness = Path(__file__).parents[1] / "harness/workspace"
-    shared = (harness / ".github/copilot-instructions.md").read_text()
+    shared = (harness / ".github/copilot-instructions.md").read_text(encoding="utf-8")
     assert measure(shared)["estimated_tokens"] < 600
     for role in ["plan", "code", "ask", "review"]:
-        text = (harness / f".github/agents/repopilotv3-{role}.agent.md").read_text()
+        text = (harness / f".github/agents/repopilotv3-{role}.agent.md").read_text(encoding="utf-8")
         front = yaml.safe_load(text.split("---")[1])
         assert "repopilotv3/*" in front["tools"]
         assert "model" not in front and "agent" not in front["tools"]
@@ -38,7 +38,7 @@ def test_static_harness_agents_permissions_and_budgets():
             assert {"edit", "execute"} <= set(front["tools"])
         elif role in {"plan", "ask"}:
             assert "edit" not in front["tools"] and "execute" not in front["tools"]
-    assert len(files("repopilotv3.resources").joinpath("webui.md").read_text()) <= 8000
+    assert len(files("repopilotv3.resources").joinpath("webui.md").read_text(encoding="utf-8")) <= 8000
 
 
 def test_setup_never_writes_workspace_harness(ws):
@@ -61,13 +61,13 @@ def test_setup_never_writes_workspace_harness(ws):
 def test_static_host_commands_use_stdin():
     """Static hook commands contain no payload interpolation or generated host paths."""
     harness = Path(__file__).parents[1] / "harness/workspace"
-    hooks = json.loads((harness / ".github/hooks/repopilotv3.json").read_text())["hooks"]
+    hooks = json.loads((harness / ".github/hooks/repopilotv3.json").read_text(encoding="utf-8"))["hooks"]
     for entries in hooks.values():
         hook = entries[0]
         assert hook["bash"].startswith("python -m repopilotv3.integrations.hooks")
         assert "$" not in hook["bash"] and "$" not in hook["powershell"]
         assert hook["timeoutSec"] <= 5
-    server = json.loads((harness / ".mcp.json").read_text())["mcpServers"]["repopilotv3"]
+    server = json.loads((harness / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]["repopilotv3"]
     assert isinstance(server["args"], list)
 
 
@@ -148,12 +148,12 @@ def test_protocol_examples_schema_and_fenced_json():
     """Every published protocol example validates against the installed request schema."""
     import re
 
-    body = files("repopilotv3.resources").joinpath("protocol.md").read_text()
+    body = files("repopilotv3.resources").joinpath("protocol.md").read_text(encoding="utf-8")
     for example in re.findall(r"```json\n(.*?)\n```", body, re.S):
         validate(json.loads(example))
         assert parse("```json\n" + example + "\n```") == json.loads(example)
     assert (
-        json.loads(files("repopilotv3.resources").joinpath("schemas/v1/request.schema.json").read_text())
+        json.loads(files("repopilotv3.resources").joinpath("schemas/v1/request.schema.json").read_text(encoding="utf-8"))
         == REQUEST_SCHEMA
     )
     with pytest.raises(PilotError):

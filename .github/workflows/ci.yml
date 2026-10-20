@@ -5,6 +5,7 @@ permissions:
 jobs:
   python:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -53,6 +54,7 @@ jobs:
   extension:
     needs: package
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         editor: ['1.85.2', stable]

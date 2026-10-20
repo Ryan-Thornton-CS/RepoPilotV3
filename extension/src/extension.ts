@@ -9,6 +9,7 @@ import { PanelMessage, panelMessage, validSourcePath, requireTrusted } from './p
 import { ProposalFile, ReviewDocuments } from './diffs';
 import { ProjectFolder, ProjectWorkspaces } from './workspaces';
 import { McpIntegration, repositoryServerName } from './mcp';
+import { canonicalPath, pathIdentity } from './paths';
 import { ProjectRegistry } from './projects';
 import { ConfigurationEdit } from './configuration';
 
@@ -64,23 +65,23 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       <nav id="project-tabs" role="tablist" aria-label="Project pages"><button id="sessions-tab" role="tab" aria-selected="true" aria-controls="session-page">Sessions</button><button id="context-tab" role="tab" aria-selected="false" aria-controls="context-page">Context files</button></nav>
       <section id="context-page" role="tabpanel" aria-labelledby="context-tab" hidden><h2>WebUI context files</h2><p id="context-freshness">Select a session to view its package.</p><div class="toolbar"><button data-action="prepare">Refresh</button><button data-action="package">Open folder</button><button data-action="confirm">Confirm transfers</button></div><div id="context-files"></div></section>
       <section id="session-page" role="tabpanel" aria-labelledby="sessions-tab">
-      <header><button id="sessions-toggle" aria-label="Sessions" aria-expanded="false">☰</button><strong id="title">RepoPilotV3</strong><button data-action="new" title="New session" aria-label="New session">＋</button><button id="options-toggle" title="Options" aria-label="Options" aria-expanded="false">⚙</button></header>
-      <aside id="session-drawer" hidden><input id="search" type="search" placeholder="Search sessions" aria-label="Search sessions"><label><input id="archived" type="checkbox"> Show archived</label><div id="sessions"></div></aside>
-      <nav id="options" class="popover" hidden aria-label="Options">
+      <header><button id="sessions-toggle" aria-label="Sessions" aria-expanded="false" aria-controls="session-drawer">☰</button><strong id="title">RepoPilotV3</strong><button data-action="new" title="New session" aria-label="New session">＋</button><div id="options-anchor"><button id="options-toggle" title="Options" aria-label="Options" aria-expanded="false" aria-controls="options">⚙</button>      <nav id="options" class="popover" hidden aria-label="Options">
         <details open><summary>Session</summary><button data-action="starter">Copy session starter</button><button data-action="handoff">Generate handoff</button><button data-action="rename">Rename session</button><button data-action="archive">Archive / restore</button><button data-action="delete">Delete session…</button></details>
         <details><summary>Prompts</summary><button data-action="roleCopy" data-role="planning">Copy Planning prompt</button><button data-action="roleCopy" data-role="asking">Copy Asking prompt</button><button data-action="roleCopy" data-role="implementation">Copy Implementation prompt</button><button data-action="roleCopy" data-role="review">Copy Review prompt</button><button data-action="roleEdit">Edit prompts</button><button data-action="roleReset">Reset prompt to default…</button></details>
         <details><summary>WebUI context</summary><button data-action="projectPrompt">Copy project prompt</button><button data-action="prepare">Update context package</button><button data-action="confirm">Confirm transfers</button><button data-action="project">External project scope</button><button data-action="limit">Context threshold</button><label><input id="full" type="checkbox"> Full eligible-source package</label></details>
         <details><summary>Copilot &amp; MCP</summary><button data-action="mcpEnable">Enable MCP for selected project</button><button data-action="mcpStatus">MCP status</button><button data-action="mcpConfig">Open MCP configuration</button><button data-action="mcpDisable">Disable a project MCP</button><button data-action="generateHarness">Generate / update workspace harness</button><button data-action="harnessWorkspace">Open workspace .github</button><button data-action="harness">Open bundled harness</button><button data-action="harnessRecover">Recover harness update</button></details>
         <details><summary>Project &amp; execution</summary><button data-action="projectAdd">Add project folder</button><button data-action="projectRename">Rename project space</button><button data-action="projectRemove">Remove project space…</button><small id="workspace-root">No project selected</small><button data-action="setup">Validation profile</button><button data-action="permission">Command permission</button><button data-action="todo">Local recovery checkpoint</button><button data-action="todoReset">Reset checklist…</button></details>
         <details><summary>Maintenance</summary><button data-action="retention">Export retention settings</button><button data-action="diagnostics">Diagnostics</button><button data-action="restart">Reconnect backend</button><button data-action="settings">Extension settings</button></details>
-      </nav>
+      </nav></div></header>
+      <aside id="session-drawer" hidden><input id="search" type="search" placeholder="Search sessions" aria-label="Search sessions"><label><input id="archived" type="checkbox"> Show archived</label><div id="sessions"></div></aside>
+
       <main id="transcript" aria-label="Persistent chat transcript"><button id="older">Load earlier</button><div id="entries"><p class="empty">Configure your WebUI project once with ⚙ → Copy project prompt. Start a session and paste its short starter into a new chat.</p></div><div id="pending"></div></main>
       <footer><div id="job" role="status" aria-live="polite">Local tools · no connected model</div><section class="composer">
         <textarea id="request" rows="3" placeholder="Paste model tool requests or write a message…" aria-label="Message or model reply"></textarea>
-        <div class="composer-actions"><button id="paste" data-action="pasteRun">Paste + Run</button><button id="composer-menu" title="Composer actions" aria-label="Composer actions">⋯</button><button id="stop" data-action="stop" hidden>Stop</button><button id="send" data-action="send" class="primary">Send ↗</button></div>
+        <div class="composer-actions"><button id="paste" data-action="pasteRun">Paste + Run</button><button id="composer-menu" title="Composer actions" aria-label="Composer actions" aria-expanded="false" aria-controls="composer-options">⋯</button><button id="stop" data-action="stop" hidden>Stop</button><button id="send" data-action="send" class="primary">Send ↗</button></div>
         <div id="composer-options" class="popover" hidden><button id="run" data-action="run">Run as model reply</button><button data-action="forward">Copy message for WebUI</button><button data-action="note">Save local note</button></div>
       </section><div class="message-bar">
-        <button id="todo-toggle" aria-expanded="false">TODO 0/0</button><button id="context-meter" data-action="limit" title="Observed estimate against your workflow budget; remote usage is unknown">Context ~0/40k</button><button id="update-context" data-action="prepare">Update context</button>
+        <button id="todo-toggle" aria-expanded="false" aria-controls="todo-panel">TODO 0/0</button><button id="context-meter" data-action="limit" aria-label="Context window: estimated usage" title="Estimated recorded context"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle class="context-track" cx="12" cy="12" r="9"/><circle id="context-progress" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><span id="context-description" class="sr-only">Context window: 0% full</span></button><button id="update-context" data-action="prepare" aria-controls="packages" aria-expanded="false">Update context</button>
       </div><section id="todo-panel" class="popover" hidden><strong id="task">Waiting for model task/TODO</strong><ul id="items"></ul></section>
       <section id="packages" class="popover" hidden><strong>WebUI context</strong><p id="freshness"></p><div class="toolbar"><button data-action="package">Open folder</button><button data-action="instructions">Copy instructions</button><button data-action="confirm">Confirm transfers</button></div><ul id="checklist"></ul><p>Only confirm files you actually pasted/uploaded. Local generation does not update the WebUI.</p></section>
       <div id="warning" role="status"></div></footer></section></section><script nonce="${nonce}" src="${js}"></script></body></html>`;
@@ -730,12 +731,12 @@ export function activate(context: vscode.ExtensionContext): void {
 /** Return dirty file buffers belonging to this workspace, excluding private/escaping paths. */
 export function dirtyWorkspaceEditors(root: string): vscode.TextDocument[] {
   return vscode.workspace.textDocuments.filter(document => document.uri.scheme === 'file' && document.isDirty &&
-    validSourcePath(path.relative(root, document.uri.fsPath).split(path.sep).join('/')));
+    validSourcePath(path.relative(canonicalPath(root), canonicalPath(document.uri.fsPath)).split(path.sep).join('/')));
 }
 
 /** Detect affected unsaved buffers again immediately before patch approval. */
 export function dirtyAffectedEditors(root: string, paths: string[]): vscode.TextDocument[] {
-  const normalize = (value: string): string => process.platform === 'win32' ? path.resolve(value).toLowerCase() : path.resolve(value);
+  const normalize = pathIdentity;
   const affected = new Set(paths.map(p => normalize(path.join(root, p))));
   return vscode.workspace.textDocuments.filter(d => d.uri.scheme === 'file' && d.isDirty && affected.has(normalize(d.uri.fsPath)));
 }

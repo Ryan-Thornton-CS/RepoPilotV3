@@ -64,11 +64,14 @@ def test_crlf_bom_additions_deletions_and_malformed_patches():
             parse_patch(text)
 
 
-def test_multi_file_write_failure_rolls_back(ws, session, monkeypatch):
+@pytest.mark.parametrize("newline", ["lf", "crlf"])
+def test_multi_file_write_failure_rolls_back(ws, session, monkeypatch, newline):
     """An injected second-file failure restores every already applied source file."""
     import repopilotv3.manual.patches as module
 
-    (ws.root / "other.py").write_text("old\n")
+    original_other = b"old\r\n" if newline == "crlf" else b"old\n"
+    proposed_other = b"new\r\n" if newline == "crlf" else b"new\n"
+    (ws.root / "other.py").write_bytes(original_other)
     snap = RepositoryTools(ws).snapshot()
     value = {
         "base_snapshot": snap["id"],
@@ -85,7 +88,7 @@ def test_multi_file_write_failure_rolls_back(ws, session, monkeypatch):
     def fail_second(path, data):
         """Fail once during source application while allowing recovery writes."""
         nonlocal failed
-        if path == ws.root / "other.py" and data == b"new\n" and not failed:
+        if path == ws.root / "other.py" and data == proposed_other and not failed:
             failed = True
             raise OSError("injected write failure")
         return real_write(path, data)
@@ -94,7 +97,8 @@ def test_multi_file_write_failure_rolls_back(ws, session, monkeypatch):
     with pytest.raises(OSError):
         manager.apply(key, True)
     assert (ws.root / "greeter.py").read_bytes() == original
-    assert (ws.root / "other.py").read_bytes() == b"old\n"
+    assert failed
+    assert (ws.root / "other.py").read_bytes() == original_other
 
 
 def test_edit_between_preflight_and_backup_cannot_be_overwritten(ws, session, monkeypatch):

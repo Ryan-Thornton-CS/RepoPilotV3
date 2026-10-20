@@ -8,7 +8,7 @@ V3 is independent of RepoPilot and RepoPilotV2. There is no state migration or T
 
 ## Install
 
-In VS Code, choose **Extensions: Install from VSIX** and select **[repopilotv3-0.2.12.vsix](dist/repopilotv3-0.2.12.vsix)**. Open a trusted source folder and click the RepoPilot icon. That's the entire backend setup.
+In VS Code, choose **Extensions: Install from VSIX** and select **[repopilotv3-0.2.13.vsix](dist/repopilotv3-0.2.13.vsix)**. Open a trusted source folder and click the RepoPilot icon. That's the entire backend setup.
 
 The VSIX includes **Python 3.12, the backend, pinned dependencies, pytest, C# analysis bindings, documentation, and the static Copilot harness** for **Windows x64 and Linux/WSL x64**. It runs offline without installing Python or downloading dependencies. VS Code **1.85+** is required; Copilot agents/MCP/hooks have separate host requirements. macOS and ARM hosts are not bundled.
 
@@ -26,7 +26,7 @@ The normal loop is **New session → copy starter → paste model reply → revi
 4. Source proposals automatically open native diff tabs. **Approve whole proposal** applies the change and runs configured validation. Commands request local permission once per chat and offer **Stop** while running.
 5. **Update context**, beside the context meter, shows upload/replace/keep actions. **⚙ → Session → Generate handoff** continues the task in a confirmed fresh external chat.
 
-The cogwheel holds configuration, validation, command permission and session options. Context tracking is an observed estimate with a configurable 40k advisory threshold, not a measurement of remote model capacity.
+The cogwheel holds configuration, validation, command permission and session options. Hover the circular context indicator for percentage and token counts; click it to adjust the limit. Escape closes open menus and restores focus. Context tracking is an observed estimate with a configurable 40k advisory threshold, not a measurement of remote model capacity.
 
 Drag the RepoPilot view container or use VS Code's **Move View / Move View Container** actions to put it in the Secondary Side Bar or Panel beside Chat/Codex. It is an independent view, not embedded in another extension.
 
