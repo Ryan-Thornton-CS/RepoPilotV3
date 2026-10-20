@@ -69,6 +69,8 @@ def parse_reply(text: str) -> tuple[str, list[dict]]:
                 if re.search(r'"(?:tool|protocol_version|request_id)"\s*:', body):
                     raise
                 continue
+            if any(is_tool_response(value) for value in values):
+                raise PilotError("This is a RepoPilot tool response. Paste it into the WebUI model, then return its next tool requests here. No tools ran.", "response_pasted")
             if any(isinstance(value, dict) and any(key in value for key in ("tool", "protocol_version", "request_id")) for value in values):
                 requests.extend(tool_request(value) for value in values)
                 spans.append(match.span())

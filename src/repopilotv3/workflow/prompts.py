@@ -7,13 +7,6 @@ from pathlib import Path
 from repopilotv3.core import canonical, digest, uid
 from repopilotv3.manual.schema import ARGUMENTS
 
-MODES = {
-    "plan": ("Planning", "Clarify the objective and constraints. Explore bounded context, compare material tradeoffs, and maintain an actionable TODO with acceptance criteria. Ask focused questions before uncertain implementation."),
-    "ask": ("Asking", "Answer the developer's question directly. Cite current source paths, distinguish evidence from inference and retrieve only missing context. Keep the task/TODO current when the objective changes."),
-    "code": ("Implementation", "Implement the next TODO item with focused reviewed patches. Run targeted checks, inspect actual evidence, correct failures and checkpoint progress. Avoid broad rewrites and repeated unchanged retrieval."),
-    "review": ("Review", "Inspect changes for concrete defects, regressions and missing evidence. Cite paths and explain impact. Run relevant checks when authorized; distinguish confirmed findings from questions and model assumptions."),
-}
-
 
 class PromptService:
     """Render useful harness replies without making a model call or replaying an operation."""
@@ -47,13 +40,12 @@ class PromptService:
         """Introduce this conversation separately from reusable project behavior and protocol."""
         session = self.workflow.check(session_id)
         saved = self.history.preference("starter:" + session_id)
-        title, _ = MODES[session["mode"]]
-        if (not session["task_id"] and isinstance(saved, dict) and saved.get("starter_version") == 2
-                and saved.get("mode") == session["mode"] and saved.get("kind") == "new"):
+        if (not session["task_id"] and isinstance(saved, dict) and saved.get("starter_version") == 3
+                and saved.get("kind") == "new"):
             return saved
         kind = "continuation" if session["task_id"] else "new"
         parts = ["# " + ("Continue project chat" if session["task_id"] else "New project chat"),
-                 f"Project: `{self.ws.root.name}`\nLocal session: `{session_id}`\nMode: {title}",
+                 f"Project: `{self.ws.root.name}`\nLocal session: `{session_id}`",
                  "Use this WebUI project's separately configured project instructions. "
                  "If they are unavailable, ask me to paste the project prompt first."]
         if session["task_id"]:
@@ -66,11 +58,10 @@ class PromptService:
                       "Once it is clear, use task with objective and chat_name, then todo to register the checklist. "
                       "Do not invent an objective."]
         text = "\n\n".join(parts)
-        if isinstance(saved, dict) and saved.get("starter_version") == 2 and saved.get("text") == text:
+        if isinstance(saved, dict) and saved.get("starter_version") == 3 and saved.get("text") == text:
             return saved
-        entry_id = "starter:v2:" + session_id + ":" + digest(text)
-        result = self.save(session_id, text, entry_id, action="starter", starter_version=2,
-                           mode=session["mode"], kind=kind)
+        entry_id = "starter:v3:" + session_id + ":" + digest(text)
+        result = self.save(session_id, text, entry_id, action="starter", starter_version=3, kind=kind)
         self.history.preference("starter:" + session_id, result)
         return result
 
@@ -80,19 +71,16 @@ class PromptService:
         message = uid("user")
         self.history.add(session_id, "user", {"text": text}, message)
         task = session["task_id"] or "not initialized"
-        forwarded = f"Session: {session_id} · Task: {task} · Mode: {MODES[session['mode']][0]}\n\n{text}\n\nRespond concisely; use RepoPilot JSON requests for local tools and keep the TODO current."
+        forwarded = f"Session: {session_id} · Task: {task}\n\n{text}\n\nRespond concisely; use RepoPilot JSON requests for local tools and keep the TODO current."
         return self.save(session_id, forwarded, "forward:" + message, action="forward")
 
     def configure(self, session_id: str, **settings) -> dict:
-        """Persist local controls and emit a short mode delta only when the mode changes."""
-        previous = self.workflow.check(session_id)
+        """Persist local controls; legacy mode fields never produce behavioral prompts."""
+        self.workflow.check(session_id)
         session = self.sessions.configure(session_id, **settings)
         if settings.get("project"):
             self.history.preference("default_project", settings["project"])
-        self.history.add(session_id, "local", {"action": "session_settings", **settings})
-        if previous["mode"] != session["mode"]:
-            title, guidance = MODES[session["mode"]]
-            return self.save(session_id, f"Mode changed to {title}.\nSession: {session_id}\n\n{guidance}\n\nRetain the existing task and TODO. Use the same tool protocol; no operation has executed because the mode changed.", action="mode")
+        self.history.add(session_id, "local", {"action": "session_settings", **{k: v for k, v in settings.items() if k != "mode"}})
         return {"session_id": session_id, "session": session}
 
     def advise(self, session_id: str, result: dict) -> dict:

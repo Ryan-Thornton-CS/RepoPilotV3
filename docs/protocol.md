@@ -63,6 +63,9 @@ Frames are UTF-8 JSON, one per line; this is JSON-RPC **2.0**, with management p
 | Methods | Additional parameters |
 |---|---|
 | `hello`, `diagnostics`, `sessions.selected`, `tasks.list` | none |
+| `harness.preview` | optional repository_root, repository_state, server_name; local administration only |
+| `harness.apply`, `harness.recover` | plan_id or recovery_id respectively |
+| `harness.status` | none; generation/runtime drift and interrupted updates |
 | `setup` | optional validation enum: keep/python/dotnet_test/dotnet_build |
 | `sessions.list` | optional query, archived |
 | `sessions.create` | optional name, objective **or** task_id, project |
@@ -121,6 +124,22 @@ Command permission is granted/revoked through local management or CLI configurat
 
 A reply journals processing, awaiting_permission/awaiting_approval, completed, failed or rejected. Local resolution runs a staged command/application once and can advance only unexecuted later requests. Errors/declines stop the queue. Reconnect never resumes uncertain processing. Results correlate request IDs. Individual tools remain bounded with explicit omissions; combining a turn does not truncate those results again. Its single Copy action includes saved results, errors, local outcomes and remaining request IDs, deduplicating identical results. The complete copy can exceed an individual tool's response budget.
 
-Context counts unique recorded transfers and complete model replies. At the session’s configured threshold (40,000 estimated tokens by default), one advisory is appended to the next copy-ready tool reply and a packet is prepared. Work remains allowed. Copying is observed content, not proof of remote paste. New independent sessions default to plan; continuations retain mode/task and reset TODO readiness and command permission.
+Context counts unique recorded transfers and complete model replies. At the session’s configured threshold (40,000 estimated tokens by default), one advisory is appended to the next copy-ready tool reply and a packet is prepared. Work remains allowed. Copying is observed content, not proof of remote paste. New sessions have no active role mode; continuations retain the task and reset TODO readiness and command permission.
 
 Model-facing Copy renders a short summary and fenced JSON with `kind: "tool_results"`. `history.copy_turn` also returns the parsed `copy_data` object. It consolidates the latest task once, removes duplicate Markdown TODOs and internal monitoring/timestamps, and preserves source text, citations, omissions, warnings, failures and validation evidence. Full original events remain in private history. Replaying a result envelope as a request produces `response_pasted` without executing tools. Keyword search includes `indexed_file_count`; `search "*"` lists bounded eligible paths and hashes.
+
+## MCP repository setup and local harness administration
+
+MCP retains the four retrieval/checkpoint tools and adds `setup_repository(repository_path?)` and `repository_status(repository_id?)`. All four existing tools accept an optional repository_id. Omission always means the startup root. Setup accepts only existing directories within that root and returns a stable opaque repository_id; it performs no validation, dependencies or harness writes. Status works before initialization. Bind subprojects again after a server restart. Source tools report not_initialized with setup guidance rather than preventing server discovery.
+
+Management RPC adds `harness.preview` (optional repository_root, repository_state, server_name), `harness.apply` (plan_id), `harness.status`, and `harness.recover` (recovery_id). These are trusted local administration, unavailable to model JSON/MCP. Overrides must keep the repository inside the target workspace root. Preview returns concrete original/proposed files, actions, conflicts and a plan ID; apply refuses conflicts, changed bases or old-runtime previews. Recovery uses its durable journal and refuses later edits. Setup still never generates a harness automatically.
+
+## Composer, prompt and checklist administration
+
+`composer.preview(session_id,text)` returns `route` (`reply` or `message`) and `has_commands` without effects. `composer.submit(session_id,text)` uses the same classification: request-shaped text enters complete-reply import, ordinary prose enters prompt composition. Malformed request-shaped text stays a durable import error. The editor checks dirty buffers before submissions containing commands. `prompts.compose` remains the explicit no-execution forwarding override; CLI protocol 1.0 is unchanged.
+
+`prompts.read(role)` returns exact UTF-8 Markdown, path, content hash, customization flag and default version. Roles are planning/asking/implementation/review. Missing files initialize from shipped defaults in private state. `prompts.reset(role,expected_hash)` performs a compare-before-write reset and retains previous bytes with metadata in private recovery storage. The editor confirms resets and blocks unsaved prompt-buffer conflicts. These methods do not require or create a session; copying optionally records an outgoing transfer in the selected chat.
+
+`todo.reset(session_id,expected_revision)` is a local, confirmed administrative operation. It archives checklist items, retains validation/requirements, invalidates readiness across chats sharing the task and returns a copy-ready recovery message. Concurrent task changes produce `stale_task`; changed prompts produce `stale_prompt`. Neither reset is model-callable.
+
+Legacy saved mode fields and CLI configuration arguments remain readable, but no longer affect starters, outgoing prompts or handoffs. Role prompts copy their exact file contents and change no session state or permissions. Project-list persistence belongs to the extension and uses stable folder identifiers; backend operations remain root/session-bound.

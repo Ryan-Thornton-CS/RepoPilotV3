@@ -1,6 +1,18 @@
 # Static Copilot workspace harness
 
-`workspace/` is authoritative. The VSIX ships these exact files, unchanged. **Setup and the extension never create, copy, merge, or rewrite them in your workspace.** Package staging is separate from workspace installation.
+`workspace/` is authoritative. The VSIX ships these exact files, unchanged. **Workspace generation is optional and requires an explicit local preview/apply action.** Plain CLI setup and MCP repository setup still initialize private state only. The packaged source bundle remains unchanged.
+
+## Recommended extension setup
+
+1. Choose **⚙ → Project & execution → Select workspace** and select the individual project.
+2. Choose **Copilot & MCP → Enable MCP for selected project**. The bundled interpreter is used; no PATH edits or separate Python install are needed. VS Code retains its trust/start/tool-picker controls.
+3. Existing RepoPilot entries are detected in the project and enclosing workspace. Keep them or explicitly switch after reviewing the exact MCP configuration diffs. Unrelated JSONC comments/entries are preserved.
+4. Choose **Generate / update workspace harness**. Default to the selected project; an enclosing workspace root is offered when applicable. Inspect the proposed agent/instruction/hook diffs and apply them locally.
+5. Select Plan, Code, Ask or Review in Copilot. Generated agents reference the project-specific MCP server name. Open **MCP status** to see exact registered roots and inspect actual connection state through VS Code's **MCP: List Servers** command.
+
+Native-provider registration does not write an MCP file. Older hosts with native MCP but no provider API can preview a `.vscode/mcp.json` fallback. Hosts with no MCP support retain the manual panel and report the missing capability. File-based registrations/quoted hook commands can need an explicit refresh after an extension upgrade; generator status flags stale runtime paths. Existing processes never change repository roots when the panel switches projects.
+
+Generated files use private ownership hashes. Existing project instructions are retained around a clearly marked block. Unowned/modified agents or hooks are conflicts, not overwritten files. Review and merge your changes deliberately; requesting a new preview rechecks the current source. Failed generation uses private recovery copies under `.repopilotv3/harness/recovery`; **Recover harness update** refuses to overwrite later developer edits. The static files below remain an alternative.
 
 ## Manual placement
 
@@ -10,9 +22,9 @@
 4. Manually merge `workspace/.github/copilot-instructions.md` into your existing instructions. Keep only the RepoPilotV3-specific language/docstring paragraph when working on RepoPilot itself; adapt project conventions for other repositories.
 5. Choose **one** MCP format below and manually merge its `repopilotv3` entry. Preserve unrelated entries.
 6. Optionally copy `workspace/.github/hooks/repopilotv3.json` if your installed Copilot runtime supports that format/events. Check runtime logs after the first session.
-7. Run `python -m repopilotv3 --repo /absolute/repository setup` in the selected environment. Select an agent explicitly in Copilot.
+7. Start MCP and call setup_repository, or run `python -m repopilotv3 --repo /absolute/repository setup`. Select an agent explicitly in Copilot.
 
-No runtime installer, generated agent template, or automatic upgrade is supplied. Your manually placed files remain yours. Review future changes and merge them deliberately.
+No automatic upgrade rewrites your workspace. Generated files update only through the explicit preview flow; manually placed files remain yours.
 
 ## MCP discovery and Python paths
 
@@ -63,3 +75,9 @@ The manual WebUI system prompt is a separate packaged resource, exported as `00_
 The panel minimum is VS Code 1.85. Copilot agents, handoffs, native MCP and hooks have newer and independently evolving requirements. Validate them in your installed host.
 
 Official references: [custom agents](https://code.visualstudio.com/docs/agent-customization/custom-agents), [MCP servers](https://code.visualstudio.com/docs/agent-customization/mcp-servers), [VS Code hooks](https://code.visualstudio.com/docs/agent-customization/hooks), [Copilot hooks](https://docs.github.com/en/copilot/reference/hooks-reference).
+
+## Standalone MCP bootstrap
+
+`python -m repopilotv3 --repo /absolute/repository mcp serve` starts before private initialization. Call `repository_status`, then `setup_repository` if needed. To use an existing child project, call `setup_repository` with `repository_path` and keep the returned `repository_id` in subsequent retrieval/checkpoint calls. Paths outside the configured root, private/generated directories, and escaping symlinks are rejected. Missing identifiers default to the original server root, never the last selected project. Subproject bindings are server-process local; after restart, call setup again to bind the same stable identifier. No models, restores, builds or harness installation run through these setup/status tools.
+
+If a portable `.mcp.json` belongs to a separate local-model client, choose **Keep portable config and enable VS Code MCP**. That explicit choice leaves the portable file unchanged and registers the selected project separately with VS Code. Native `.vscode/mcp.json` duplicates still require migration or keeping the existing server.

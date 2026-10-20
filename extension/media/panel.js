@@ -11,8 +11,16 @@ let searchTimer;
 const streams = new Map();
 const send = (action, extra = {}) => vscode.postMessage({ action, ...extra });
 const descriptions = Object.freeze({
+  mcpEnable: 'Register the selected project’s bundled MCP server with VS Code; existing entries are checked first.',
+  mcpDisable: 'Disable a selected project registration without redirecting other chats.',
+  mcpStatus: 'Inspect registered project roots and MCP API availability; VS Code owns actual connection state.',
+  mcpConfig: 'Inspect the existing or proposed bundled MCP launch configuration.',
+  generateHarness: 'Preview and generate agents, project instructions and Python hooks for a project or enclosing workspace.',
+  harnessWorkspace: 'Open the selected project’s existing .github folder.',
+  harnessRecover: 'Restore a failed harness update while preserving later developer edits.',
+  retention: 'Edit automatic export/cache size and retention settings in private configuration.',
   projectPrompt: 'Copy reusable project behavior and tool instructions (up to 8,000 characters). Paste into WebUI project settings.',
-  starter: 'Copy this chat’s introduction, mode and task state. Project instructions are separate.',
+  starter: 'Copy this chat’s introduction and task state. Project instructions are separate.',
   handoff: 'Prepare progress and context for a fresh WebUI chat.',
   rename: 'Change the chat’s title.',
   archive: 'Hide a chat or bring it back from the archived list.',
@@ -29,7 +37,15 @@ const descriptions = Object.freeze({
   settings: 'Open RepoPilot’s VS Code settings.',
   new: 'Create a chat and prepare its starter.',
   select: 'Open this saved chat without replaying requests.',
-  send: 'Prepare typed text to paste into the WebUI.',
+  send: 'Run detected tool requests, or prepare ordinary prose for the WebUI.',
+  forward: 'Copy your message for the WebUI without executing JSON examples.',
+  roleCopy: 'Copy the current project’s saved Markdown role prompt without changing permissions.',
+  roleEdit: 'Edit a project-owned prompt file; save before copying.',
+  roleReset: 'Restore shipped guidance after confirmation, keeping a recovery copy.',
+  todoReset: 'Archive this shared task’s checklist and require a replacement; retain evidence.',
+  projectAdd: 'Add a folder as an independent project space.',
+  projectRename: 'Rename the project listing without moving its folder.',
+  projectRemove: 'Remove this listing; retain folders, sessions, private state and MCP.',
   pasteRun: 'Import a model reply and execute its tool requests.',
   run: 'Process the composer’s contents as a model response.',
   note: 'Record a note without executing tools.',
@@ -45,13 +61,8 @@ const descriptions = Object.freeze({
   approve: 'Apply every proposed file change and run configured validation.',
   reject: 'Decline the proposed changes.',
   recover: 'Repair an interrupted patch application.',
+  contextFile: 'Open this exact published context artifact in the editor.',
   source: 'Open this cited source file at its referenced line.'
-});
-const modes = Object.freeze({
-  plan: 'Clarify requirements and organize work.',
-  ask: 'Answer focused repository questions.',
-  code: 'Write changes and validate them.',
-  review: 'Examine changes and identify defects.'
 });
 
 /** Provide native hover help and an accessible description without interpreting markup. */
@@ -63,7 +74,7 @@ function describe(element, text) {
 /** Show the repository boundary in the options menu and its folder-picker tooltip. */
 function projectRoot(workspace) {
   byId('workspace-root').textContent = workspace || 'No project selected';
-  describe(document.querySelector('[data-action="workspace"]'), descriptions.workspace + (workspace ? ` Current project: ${workspace}` : ''));
+  describe(document.querySelector('[data-action="projectAdd"]'), descriptions.workspace + (workspace ? ` Current project: ${workspace}` : ''));
 }
 
 /** Persist the selected draft without executing it on disposal or restart. */
@@ -270,6 +281,7 @@ function render(message) {
     entries.clear(); streams.clear(); firstRender = true;
     byId('title').textContent = 'RepoPilotV3'; byId('request').value = ''; resizeComposer();
     byId('entries').replaceChildren(node('p', 'Start a new session or select a saved chat. First-time project setup: ⚙ → Copy project prompt; paste it into WebUI project instructions once.', 'empty'));
+    byId('context-files').replaceChildren(); byId('context-freshness').textContent = 'Select a session to view its package.';
     for (const id of ['pending', 'items', 'checklist']) byId(id).replaceChildren();
     for (const id of ['packages', 'todo-panel', 'stop']) byId(id).hidden = true;
     byId('todo-toggle').textContent = 'TODO 0/0'; byId('context-meter').textContent = 'Context ~0/40k';
@@ -285,8 +297,6 @@ function render(message) {
     saved.drafts[session] = byId('request').value; vscode.setState(saved);
   }
   firstRender = false;
-  byId('mode').value = status.session.mode || 'plan';
-  describe(byId('mode'), modes[byId('mode').value]);
   byId('task').textContent = status.task?.objective || 'Waiting for the model to create a task and TODO.';
   const items = status.task?.items || [];
   byId('todo-toggle').textContent = `TODO ${items.filter(i => i.status === 'completed').length}/${items.length}`;
@@ -315,7 +325,14 @@ function render(message) {
   describe(byId('update-context'), descriptions.prepare + ' ' + (status.package_stale ? 'Source package is stale.' : changedCount ? `${changedCount} artifacts differ from confirmed transfers.` : 'Context package matches confirmed transfers.'));
   byId('freshness').textContent = status.directory ? `${status.package_stale ? 'Refreshing' : 'Current'} · ${status.directory}` : 'Refresh to prepare upload files.';
   byId('checklist').replaceChildren();
-  for (const row of rows) byId('checklist').append(node('li', `${row.action.toUpperCase()} ${row.file}${row.required ? '' : ' (optional)'} · ${row.hash.slice(0, 10)}`));
+  byId('context-files').replaceChildren();
+  byId('context-freshness').textContent = status.directory ? `${status.package_stale ? 'STALE — refresh before uploading' : 'Current package'} · ${status.directory}` : 'Refresh to generate this session’s context files.';
+  for (const row of rows) {
+    byId('checklist').append(node('li', `${row.action.toUpperCase()} ${row.file}${row.required ? '' : ' (optional)'} · ${row.hash.slice(0, 10)}`));
+    const entry = node('article', undefined, 'context-file');
+    entry.append(node('strong', row.file), node('p', `${row.action.toUpperCase()} · ${row.hash.slice(0, 10)}${row.required ? '' : ' · optional'}`), button('Open file', 'contextFile', { path: row.file }));
+    byId('context-files').append(entry);
+  }
 }
 
 /** Toggle one compact surface without creating additional global toolbar rows. */
@@ -326,6 +343,50 @@ function toggle(id, control) {
   if (control) byId(control).setAttribute('aria-expanded', String(!panel.hidden));
 }
 
+/** Switch accessible tab groups without executing requests or copying content. */
+function tabs(group, selected, panels) {
+  for (const [buttonId, panelId] of panels) {
+    byId(buttonId).setAttribute('aria-selected', String(buttonId === selected));
+    byId(buttonId).tabIndex = buttonId === selected ? 0 : -1;
+    byId(panelId).hidden = buttonId !== selected;
+  }
+  saved[group] = selected; vscode.setState(saved);
+}
+const topPages = [['projects-tab', 'projects-page'], ['documentation-tab', 'documentation-page']];
+const projectPages = [['sessions-tab', 'session-page'], ['context-tab', 'context-page']];
+for (const [group, pages] of [['topPage', topPages], ['projectPage', projectPages]]) {
+  for (const [id] of pages) {
+    byId(id).addEventListener('click', () => tabs(group, id, pages));
+    byId(id).addEventListener('keydown', event => {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const next = event.key === 'Home' ? pages[0][0] : event.key === 'End' ? pages.at(-1)[0] : pages.find(([other]) => other !== id)[0];
+        tabs(group, next, pages); byId(next).focus();
+      }
+    });
+  }
+  tabs(group, pages.some(([id]) => id === saved[group]) ? saved[group] : pages[0][0], pages);
+}
+byId('project-select').addEventListener('change', () => {
+  saveDraft(); send('projectSelect', { projectId: byId('project-select').value });
+});
+let helpTopics = [];
+/** Render trusted bundled help through text nodes, never Markdown HTML or source markup. */
+function help() {
+  const query = byId('help-search').value.toLowerCase();
+  const container = byId('help-topics'); container.replaceChildren();
+  for (const topic of helpTopics.filter(t => (t.title + ' ' + t.text).toLowerCase().includes(query))) {
+    const article = node('article', undefined, 'help-topic');
+    article.append(node('h2', topic.title), formatted(topic.text));
+    if (topic.image) {
+      const image = node('img'); image.src = topic.image; image.alt = topic.alt || topic.title; image.loading = 'lazy'; article.append(image);
+    }
+    container.append(article);
+  }
+  if (!container.childNodes.length) container.append(node('p', 'No matching help topics.'));
+}
+byId('help-search').addEventListener('input', help);
+
 byId('sessions-toggle').addEventListener('click', () => toggle('session-drawer', 'sessions-toggle'));
 byId('options-toggle').addEventListener('click', () => toggle('options', 'options-toggle'));
 byId('todo-toggle').addEventListener('click', () => toggle('todo-panel', 'todo-toggle'));
@@ -334,30 +395,24 @@ document.querySelectorAll('[data-action]').forEach(element => {
   if (descriptions[element.dataset.action]) describe(element, descriptions[element.dataset.action]);
   element.addEventListener('click', () => {
   const action = element.dataset.action; saveDraft();
-  send(action, ['run', 'send', 'note'].includes(action) ? { text: byId('request').value } : {});
+  send(action, action === 'roleCopy' ? { text: element.dataset.role } : ['run', 'send', 'forward', 'note'].includes(action) ? { text: byId('request').value } : {});
   if (action !== 'stop') byId('options').hidden = true;
   byId('composer-options').hidden = true;
   });
 });
 for (const [id, text] of Object.entries({
   'sessions-toggle': 'Search, select, archive, restore or delete chats.',
-  'options-toggle': 'Open session settings, project selection and local tools.',
+  'options-toggle': 'Open grouped session, context, Copilot/MCP, project and maintenance settings.',
   'search': 'Search saved sessions by name, identifier or task objective.',
   'archived': 'Display archived sessions so you can restore or delete them.',
   'full': 'Include Markdown exports of all eligible source files.',
   'older': descriptions.history,
   'composer-menu': 'Run the composer as a model reply or save a local note.',
   'todo-toggle': 'Expand the current task checklist.',
-  'mode': modes.plan,
   'context-meter': 'Show recorded token estimates; click to adjust the advisory threshold.'
 })) describe(byId(id), text);
 describe(byId('full').closest('label'), byId('full').title);
 describe(byId('archived').closest('label'), byId('archived').title);
-for (const option of byId('mode').options) describe(option, modes[option.value]);
-byId('mode').addEventListener('change', () => {
-  describe(byId('mode'), modes[byId('mode').value]);
-  send('mode', { text: byId('mode').value });
-});
 byId('full').addEventListener('change', () => send('prepare', { value: byId('full').checked }));
 byId('older').addEventListener('click', () => send('history'));
 byId('request').addEventListener('input', () => { resizeComposer(); clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 200); });
@@ -373,6 +428,13 @@ byId('search').addEventListener('input', () => { clearTimeout(searchTimer); sear
 byId('archived').addEventListener('change', search);
 window.addEventListener('message', event => {
   const message = event.data;
+  if (message.type === 'documentation') { helpTopics = message.topics; help(); }
+  if (message.type === 'projects') {
+    const select = byId('project-select'); select.replaceChildren();
+    if (!message.projects.length) { const empty = node('option', 'Add a project folder'); empty.value = ''; select.append(empty); }
+    for (const project of message.projects) { const option = node('option', project.name); option.value = project.id; option.selected = project.uri === message.selectedUri; option.title = project.uri; select.append(option); }
+    if (!message.selectedUri && message.projects.length) { const placeholder = node('option', 'Select project'); placeholder.value = ''; placeholder.selected = true; select.prepend(placeholder); }
+  }
   if (message.type === 'workspaceChanged') {
     clearTimeout(draftTimer); session = null; saved.session = null;
     render({ selected: null, sessions: [] });

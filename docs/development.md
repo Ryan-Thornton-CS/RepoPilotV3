@@ -2,7 +2,7 @@
 
 ## Source layout
 
-`src/repopilotv3/` contains documented Python services; `extension/src` and `extension/media` contain the VS Code UI. `harness/` is authoritative static configuration. `tests/`, `extension/test`, `examples/` and `tools/` hold synthetic verification and build utilities. The release artifact is one VSIX in ignored `dist/`; generated dependencies never belong in Git.
+`src/repopilotv3/` contains documented Python services; `extension/src` and `extension/media` contain the VS Code UI. `harness/` is authoritative static configuration. `tests/`, `extension/test`, `examples/` and `tools/` hold synthetic verification and build utilities. Release artifacts are a complete VSIX and a source-plus-harness distribution ZIP in ignored `dist/`; generated dependencies never belong in Git.
 
 ## Explicit build provisioning
 
@@ -14,7 +14,7 @@ npm ci --prefix extension --ignore-scripts
 uv run --frozen --group dev python tools/build.py
 ```
 
-This builds the pure-Python backend internally, stages CPython and hash-pinned dependencies for Windows x64 and Linux x64, compiles the extension, and writes `dist/repopilotv3-0.2.10.vsix`. `npm run package --prefix extension` invokes the same build. There is no publication or workspace harness installation.
+This builds the pure-Python backend internally, stages CPython and hash-pinned dependencies for Windows x64 and Linux x64, compiles the extension, and writes `dist/repopilotv3-0.2.12.vsix`. `npm run package --prefix extension` invokes the same build. There is no publication or workspace harness installation.
 
 `uv.lock` and `extension/package-lock.json` pin Python/Node dependencies. `tools/runtime-lock.json` pins Python build URLs, hashes and the uv metadata release. uv verifies standalone runtime downloads against its pinned metadata. pip installs only hash-verified binary wheels; target-specific markers are evaluated explicitly before cross-platform installation. Build caches live under `.tools/bundle/`; staging lives under ignored `extension/backend`, `extension/docs`, and `extension/harness`.
 
@@ -49,3 +49,11 @@ Optional SDK fixture checks use `tools/provision_fixtures.py --dotnet <executabl
 ## Manual release smoke check
 
 Install the built VSIX in a fresh profile with no configured Python path. Trust a synthetic workspace, open RepoPilot, create a session, run TODO/read, inspect a proposal in native diffs, approve and verify an approved test profile. Restart VS Code and confirm history/draft restoration without replay. Generate a handoff and confirm distinct chat IDs. Copy the static harness manually to separately check Copilot discovery/MCP/hooks on supported hosts.
+
+The VSIX bundles the pinned Microsoft jsonc-parser runtime and license under out/vendor for JSONC-preserving editor configuration edits. Integration tests cover native-provider registration through a public-API adapter, explicit duplicate migration, standalone real MCP bootstrap, harness conflicts and rollback. Editor-host checks exercise the actual API registration where available and generated bundled assets. For manual Copilot verification, enable a project, inspect it in MCP: List Servers, approve/start it and call repository_status from your selected model; a provider registration alone is not proof of actual model-tool execution.
+
+## Distribution ZIP and UI documentation
+
+After verifying the full VSIX, run `uv run --frozen python tools/release.py`. It writes the versioned `*-release.zip` and outer `dist/SHA256SUMS`. The ZIP contains the VSIX, loose `.github` workspace harness, both MCP configuration formats, complete backend sources/metadata/locks, license and setup notes. Internal checksums cover every payload member. Inputs are explicitly selected; private state and caches are excluded. CI uploads both artifacts on its existing triggers without publishing releases or Marketplace extensions. Version selection comes from project metadata instead of a hardcoded extraction filename.
+
+`docs/help.json` supplies data-only offline help. Its PNG figures are real panel captures with synthetic content and numbered red outlines. To refresh them on Linux, explicitly provision a cached test editor, compile the extension and stage its bundled backend/docs, then run `uv run --frozen python tools/capture_ui.py --launch`. The tool connects only to an explicitly launched local Chromium debugging endpoint; it does not automate external WebUIs. `extension/test/capture.ts` seeds disposable source and task records under ignored `.tools/`. No screenshots of private projects are needed.

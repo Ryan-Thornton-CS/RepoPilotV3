@@ -39,10 +39,17 @@ jobs:
       - run: npm ci --prefix extension --ignore-scripts
       - run: uv run --frozen python tools/build.py
       - run: uv run --frozen python tools/verify.py --smoke
+      - run: uv run --frozen python tools/release.py
       - uses: actions/upload-artifact@v4
         with:
           name: repopilotv3-vsix
           path: dist/*.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repopilotv3-distribution
+          path: |
+            dist/repopilotv3-*-release.zip
+            dist/SHA256SUMS
   extension:
     needs: package
     strategy:
@@ -68,7 +75,7 @@ jobs:
       - run: uv sync --frozen --group dev
       - run: npm ci --prefix extension --ignore-scripts
       - name: Extract the same release for both native hosts
-        run: uv run --frozen python -c "import zipfile; zipfile.ZipFile('dist/repopilotv3-0.2.10.vsix').extractall('.')"
+        run: uv run --frozen python -c "import pathlib,zipfile; zipfile.ZipFile(next(pathlib.Path('dist').glob('*.vsix'))).extractall('.')"
       - run: npm test --prefix extension
       - run: uv run --frozen python tools/verify.py --smoke
       - name: Editor checks (Linux)

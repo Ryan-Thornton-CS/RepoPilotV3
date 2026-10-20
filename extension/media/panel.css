@@ -62,3 +62,20 @@ body.vscode-light { --repopilot-blue: #0969da; --repopilot-blue-wash: rgba(9, 10
 body.vscode-high-contrast .message, body.vscode-high-contrast-light .message { background: transparent; outline: 1px solid var(--vscode-contrastBorder); }
 body.vscode-high-contrast button.primary, body.vscode-high-contrast-light button.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); outline: 1px solid var(--vscode-contrastBorder); }
 [hidden] { display: none !important; }
+
+#options details { border-bottom: 1px solid var(--vscode-panel-border); padding: 3px 0; }
+#options summary { padding: 7px 5px; cursor: pointer; font-weight: 600; }
+#options details button, #options details label { padding-left: 16px; }
+#options summary:focus-visible { outline: 1px solid var(--vscode-focusBorder); }
+
+#top-tabs, #project-tabs { display: flex; flex: none; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--vscode-panel-border); }
+[role=tab][aria-selected=true] { color: var(--vscode-foreground); box-shadow: inset 0 -2px var(--repopilot-blue); }
+#projects-page, #session-page { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.project-bar { display: flex; flex: none; gap: 4px; padding: 4px 8px; }
+#project-select { flex: 1; min-width: 0; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); padding: 4px; }
+#documentation-page, #context-page { overflow: auto; min-height: 0; padding: 8px 12px; flex: 1; }
+.help-topic, .context-file { border-bottom: 1px solid var(--vscode-panel-border); padding: 8px 0; overflow-wrap: anywhere; }
+.help-topic p { line-height: 1.5; }
+.help-topic pre { white-space: pre-wrap; background: var(--vscode-textCodeBlock-background); padding: 8px; }
+.help-topic img { max-width: 100%; height: auto; border: 1px solid var(--vscode-panel-border); }
+#help-search { position: sticky; top: 0; }

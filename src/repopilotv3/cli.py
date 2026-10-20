@@ -63,7 +63,7 @@ def parser() -> argparse.ArgumentParser:
     session.add_argument("--task")
     session.add_argument("--objective")
     session.add_argument("--name", default="New session")
-    session.add_argument("--mode", choices=["plan", "ask", "code", "review"])
+    session.add_argument("--mode", choices=["plan", "ask", "code", "review"], help="Deprecated compatibility input; use copyable role prompts")
     session.add_argument("--context-limit", type=int)
     session.add_argument("--project")
     permission = session.add_mutually_exclusive_group()

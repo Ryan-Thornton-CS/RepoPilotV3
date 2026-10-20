@@ -58,7 +58,6 @@ class SessionStore:
             "created_at": now(),
             "updated_at": now(),
             "name": "New session",
-            "mode": "plan",
             "context_limit": 40000,
             "commands_allowed": False,
             "archived": False,
@@ -75,7 +74,7 @@ class SessionStore:
         with self.ws.db() as db:
             if db.execute("SELECT 1 FROM records WHERE kind='deleted_session' AND id=?", (session_id,)).fetchone():
                 raise PilotError("This session was deleted. Select another session or create a new one.", "session_deleted")
-        return {"mode": "plan", "context_limit": 40000, "commands_allowed": False,
+        return {"context_limit": 40000, "commands_allowed": False,
                 **self.ws.get("session", session_id)}
 
     @contextmanager
@@ -116,7 +115,7 @@ class SessionStore:
         if mode is not None:
             if mode not in {"plan", "ask", "code", "review"}:
                 raise PilotError("Choose plan, ask, code or review", "invalid_mode")
-            session["mode"] = mode
+            # Legacy CLI/RPC input remains accepted, without creating an active mode.
         if context_limit is not None:
             if isinstance(context_limit, bool) or not 1000 <= context_limit <= 2000000:
                 raise PilotError("Context threshold must be 1,000–2,000,000 estimated tokens", "invalid_limit")

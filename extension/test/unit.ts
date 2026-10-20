@@ -215,7 +215,7 @@ test('chat starters, model tasks, modes, command permission and single-exchange 
     assert.equal(state.metrics.events, 1);
     assert.equal(state.session.name, 'Fixture');
     const mode = await client.request('sessions.configure', { ...scoped, mode: 'code' });
-    assert.match(mode.copy_text, /Mode changed to Implementation/);
+    assert.equal(mode.copy_text, undefined);
     const command = wrap('run_command', { argv: ['python', '-c', "print('from command')"] }, 'command');
     const pending = await client.request('replies.import', { ...scoped, text: command });
     assert.equal(pending.status, 'awaiting_permission');
@@ -229,7 +229,7 @@ test('chat starters, model tasks, modes, command permission and single-exchange 
     const continued = await client.request('handoff', { ...scoped, confirmed_new_chat: true });
     assert.notEqual(continued.session_id, session.id);
     const next = await client.request('sessions.status', { session_id: continued.session_id });
-    assert.equal(next.session.mode, 'code'); assert.equal(next.session.commands_allowed, false);
+    assert.equal(next.session.mode, undefined); assert.equal(next.session.commands_allowed, false);
     assert.equal(next.session.todo_ready, false);
   } finally { client.dispose(); }
 });
@@ -325,7 +325,9 @@ test('new session has no dialogs, every file opens a permanent diff, and stale a
   chosen = undefined; assert.equal(await projects.choose(), undefined);
   const changes: any[] = []; let closed = 0; let restored = 0; let saved: string | undefined;
   panel.post = (message: any) => changes.push(message);
-  panel.context = { workspaceState: { update: async (key: string, value: string) => { assert.equal(key, 'workspace'); saved = value; } } };
+  const projectState = new Map<string, any>();
+  panel.context = { workspaceState: { get: (key: string, fallback: any) => projectState.get(key) ?? fallback, update: async (key: string, value: any) => { projectState.set(key, value); if (key === 'workspace') saved = value; } } };
+  panel.projects = new (require('../src/projects').ProjectRegistry)(panel.context.workspaceState);
   panel.restore = async () => { restored++; assert.equal(panel.folder.uri.fsPath, first); };
   panel.folder = { uri: fileUri(root), name: 'Parent' }; panel.selected = 'old-project-chat';
   panel.client = { close: async () => { closed++; } }; panel.refreshing = true;
@@ -337,7 +339,7 @@ test('new session has no dialogs, every file opens a permanent diff, and stale a
   assert.equal(panel.switching, false);
   chosen = undefined; await panel.chooseWorkspace(); assert.equal(closed, 1);
   chosen = second; panel.jobs = 1;
-  await assert.rejects(panel.chooseWorkspace(), /current tool/);
+  await assert.rejects(panel.chooseWorkspace(), /current work|current tool/);
   assert.equal(panel.folder.uri.fsPath, first);
   panel.jobs = 0;
   let transfers = 0;
@@ -378,15 +380,15 @@ test('consolidated footer, mode changes, pending approvals and safe model prose'
     pending_replies: [{ reply_id: 'R', pending: { kind: 'command', argv: ['dotnet', 'build'], cwd: '/workspace' } }] };
   dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { type: 'state', selected: 'A', sessions: [{ id: 'A', name: 'Model name' }], status,
     history: [{ sequence: 1, id: 'model:1', kind: 'model', body: { text: '<img src=x onerror=bad()>\n```json\n{"x":1}\n```' } }] } }));
-  assert.equal(document.getElementById('mode').value, 'code');
+  assert.equal(document.getElementById('mode'), null);
   assert.match(document.getElementById('update-context').textContent, /1/);
   assert.match(document.getElementById('context-meter').textContent, /18k\/40k/);
   assert.equal(document.querySelectorAll('img').length, 0);
   document.querySelector('#pending button').click();
   assert.equal(sent.at(-1).action, 'resolve'); assert.equal(sent.at(-1).replyId, 'R');
-  document.getElementById('mode').value = 'review';
-  document.getElementById('mode').dispatchEvent(new dom.window.Event('change'));
-  assert.equal(sent.at(-1).action, 'mode');
+  document.querySelector('[data-action=roleCopy][data-role=review]').click();
+  assert.equal(sent.at(-1).action, 'roleCopy');
+  assert.equal(sent.at(-1).text, 'review');
   document.getElementById('request').value = 'A user question';
   document.getElementById('send').click(); assert.equal(sent.at(-1).action, 'send');
   document.getElementById('update-context').click(); assert.equal(sent.at(-1).action, 'prepare');
@@ -409,7 +411,7 @@ test('consolidated footer, mode changes, pending approvals and safe model prose'
   const draftMessages = sent.filter(value => value.action === 'draft').length;
   dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { type: 'workspaceChanged', workspace: '/project/Child Ω' } }));
   assert.equal(document.getElementById('workspace-root').textContent, '/project/Child Ω');
-  assert.match(document.querySelector('[data-action="workspace"]').title, /Child Ω/);
+  assert.match(document.querySelector('[data-action="projectAdd"]').title, /Child Ω/);
   assert.equal(sent.filter(value => value.action === 'draft').length, draftMessages);
   dom.window.close();
 });
@@ -477,4 +479,58 @@ test('backend canonicalizes a workspace alias without weakening root binding', a
     await client.request('setup');
     assert.equal((await client.request('sessions.create')).session.name, 'New session');
   } finally { client.dispose(); }
+});
+
+/** Folder-space metadata survives new registries without changing roots or deleting contents. */
+test('project registry isolates canonical folders, renames and removes listings only', async () => {
+  const { ProjectRegistry } = require('../src/projects');
+  const records = new Map<string, any>();
+  const storage = { get: (key: string, fallback: any) => records.get(key) ?? fallback,
+    update: async (key: string, value: any) => { records.set(key, value); } };
+  const projects = new ProjectRegistry(storage);
+  const first = await projects.add('file:///projects/One%20%CE%A9', 'One Ω');
+  const [second, same] = await Promise.all([projects.add('file:///projects/Two', 'Two'), projects.add('file:///projects/Two', 'Two again')]);
+  assert.equal(second.id, same.id);
+  assert.equal(projects.list().length, 2);
+  assert.equal((await projects.add(first.uri, 'Overwrite')).name, 'One Ω');
+  await projects.rename(first.id, 'Renamed');
+  const restored = new ProjectRegistry(storage);
+  assert.equal(restored.get(first.id).name, 'Renamed');
+  assert.equal(restored.get(second.id).uri, second.uri);
+  await restored.remove(first.id);
+  assert.throws(() => restored.get(first.id), /unavailable/);
+  assert.equal(restored.list().length, 1);
+  assert.equal(records.get('project.registryInitialized'), true);
+});
+
+/** Tabs/help/context links and role prompts use explicit data-only actions and passive restore. */
+test('project navigation, searchable help, context file actions and copy-only prompts', () => {
+  const { JSDOM } = require('jsdom');
+  const source = fs.readFileSync(path.resolve(__dirname, '../../src/extension.ts'), 'utf8');
+  const html = source.slice(source.indexOf('<!DOCTYPE html>'), source.indexOf('</html>') + 7);
+  const dom = new JSDOM(html.replace(/<script[^>]*src[^>]*><\/script>/g, ''), { runScripts: 'outside-only' });
+  const sent: any[] = [];
+  dom.window.acquireVsCodeApi = () => ({ postMessage: (value: any) => sent.push(value), getState: () => undefined, setState: () => {} });
+  dom.window.eval(fs.readFileSync(path.resolve(__dirname, '../../media/panel.js'), 'utf8'));
+  const d = dom.window.document;
+  const dispatch = (data: any) => dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data }));
+  dispatch({ type: 'projects', projects: [{ id: 'P', uri: 'file:///project', name: 'Synthetic Ω' }], selectedUri: 'file:///project' });
+  assert.equal(d.getElementById('project-select').value, 'P');
+  d.getElementById('project-select').dispatchEvent(new dom.window.Event('change'));
+  assert.equal(sent.at(-1).projectId, 'P');
+  dispatch({ type: 'documentation', topics: [{ title: 'Send', text: '<script>bad()</script>' }, { title: 'TODO', text: 'Reset checklist' }] });
+  d.getElementById('documentation-tab').click();
+  assert.equal(d.getElementById('documentation-page').hidden, false);
+  assert.equal(d.querySelectorAll('#help-topics script').length, 0);
+  d.getElementById('help-search').value = 'reset'; d.getElementById('help-search').dispatchEvent(new dom.window.Event('input'));
+  assert.equal(d.querySelectorAll('.help-topic').length, 1);
+  d.getElementById('projects-tab').click(); d.getElementById('context-tab').click();
+  assert.equal(d.getElementById('context-page').hidden, false);
+  dispatch({ type: 'state', selected: 'S', sessions: [], history: [], status: { session: {}, task: null, draft: '',
+    metrics: { observed_estimated_tokens: 0, exchanges: 0 }, checklist: [{ file: 'map.md', hash: 'abc', action: 'upload' }], directory: '/package' } });
+  d.querySelector('#context-files button').click();
+  assert.equal(sent.at(-1).action, 'contextFile'); assert.equal(sent.at(-1).path, 'map.md');
+  assert.equal(d.getElementById('mode'), null);
+  assert.equal(sent.filter(value => ['run', 'send', 'copy'].includes(value.action)).length, 0);
+  dom.window.close();
 });

@@ -63,7 +63,7 @@ class WorkflowService:
         session = self.sessions.create(task_id, project)
         self.sessions.update(session["id"], name=name)
         self.select(session["id"])
-        self.history.add(session["id"], "harness", {"text": "Session ready in Planning mode. Preparing your WebUI starter; no model is connected.", "action": "session_created", "task_id": task_id})
+        self.history.add(session["id"], "harness", {"text": "Session ready. Preparing your WebUI starter; no model is connected.", "action": "session_created", "task_id": task_id})
         return self.status(session["id"])
 
     def select(self, session_id: str) -> dict:
@@ -184,7 +184,7 @@ class WorkflowService:
 
     @session_operation
     def configure(self, session_id: str, **settings) -> dict:
-        """Apply local mode, permission and context controls outside the model registry."""
+        """Apply local permission and context controls outside the model registry."""
         from repopilotv3.workflow.prompts import PromptService
 
         return PromptService(self).configure(session_id, **settings)
@@ -195,6 +195,62 @@ class WorkflowService:
         from repopilotv3.workflow.prompts import PromptService
 
         return PromptService(self).compose(session_id, text)
+
+    @staticmethod
+    def submission_preview(text: str) -> dict:
+        """Classify request-shaped text without effects, retaining parser failures for import."""
+        import re
+        from repopilotv3.workflow.replies import parse_reply
+
+        shaped = bool(re.match(r"\s*(?:\{|\[\s*(?:\{|\]|$))", text) or re.search(
+            r'```(?:json|repopilot)[^\n]*\n[\s\S]*?"(?:tool|protocol_version|request_id|kind)"\s*:', text))
+        if not shaped:
+            return {"route": "message", "has_commands": False}
+        try:
+            _, requests = parse_reply(text)
+            return {"route": "reply", "has_commands": any(r["tool"] == "run_command" for r in requests)}
+        except PilotError:
+            return {"route": "reply", "has_commands": False}
+
+    @session_operation
+    def submit(self, session_id: str, text: str) -> dict:
+        """Submit prose or a complete model reply through one automatic composer path."""
+        self.check(session_id)
+        if self.submission_preview(text)["route"] == "reply":
+            return self.import_reply(session_id, text)
+        return self.compose(session_id, text)
+
+    @session_operation
+    def reset_checklist(self, session_id: str, expected_revision: int) -> dict:
+        """Archive checklist progress and invalidate readiness in every chat sharing the task."""
+        from contextlib import ExitStack
+        from repopilotv3.workflow.prompts import PromptService
+
+        session = self.check(session_id)
+        if not session["task_id"]:
+            raise PilotError("Create a task before resetting its checklist", "task_required")
+        with self.ws.lock(), ExitStack() as leases:
+            chats = [s for s in self.sessions.list() + self.sessions.list(archived=True)
+                     if s["task_id"] == session["task_id"]]
+            for chat in sorted(chats, key=lambda value: value["id"]):
+                leases.enter_context(self.sessions.activity(chat["id"]))
+            task = TaskStore(self.ws).get(session["task_id"])
+            if task["revision"] != expected_revision:
+                raise PilotError("Task changed while confirming. Review its TODO and retry.", "stale_task")
+            task.setdefault("history", []).append({"at": now(), "origin": "local", "action": "checklist_reset",
+                                                   "revision": task["revision"], "items": task["items"]})
+            task.update(items=[], revision=task["revision"] + 1, updated_at=now(), checkpoint_required=True)
+            for chat in chats:
+                chat["todo_ready"] = False
+                self.ws.put("session", chat["id"], chat)
+                self.history.preference("package-dirty:" + chat["id"], True)
+                self.history.preference("starter:" + chat["id"], None)
+            TaskStore(self.ws).save(task)
+        return PromptService(self).save(session_id,
+            f"Checklist reset locally for task {task['id']}. Previous items are retained in task history. "
+            "Rebuild the TODO using todo with a new request ID before other tools; preserve the objective, unresolved requirements, "
+            "decisions and existing validation evidence. No validation result was changed.",
+            action="checklist_reset", affected_sessions=[chat["id"] for chat in chats])
 
     @session_operation
     def import_reply(self, session_id: str, text: str) -> dict:
@@ -425,7 +481,7 @@ class WorkflowService:
             prepared = self.prepare(session_id)
             return {"requires_new_chat_confirmation": True, **prepared}
         new = self.sessions.create(session["task_id"], session["project"])
-        self.sessions.configure(new["id"], mode=session["mode"], context_limit=session["context_limit"])
+        self.sessions.configure(new["id"], context_limit=session["context_limit"])
         self.sessions.update(new["id"], name=session.get("name", "Conversation")[:148] + " (continued)")
         self.history.add(
             new["id"],

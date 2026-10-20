@@ -2,7 +2,7 @@
   "name": "repopilotv3",
   "displayName": "RepoPilotV3",
   "description": "Local manual WebUI sessions, reviewed patches and repository context; no model connection.",
-  "version": "0.2.10",
+  "version": "0.2.12",
   "publisher": "repopilot-local",
   "license": "MIT",
   "engines": {
@@ -16,7 +16,9 @@
   ],
   "main": "./out/src/extension.js",
   "activationEvents": [
-    "onView:repopilotv3.sessions"
+    "onView:repopilotv3.sessions",
+    "onStartupFinished",
+    "onMcpServerDefinitionProvider:repopilotv3.repositories"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -41,7 +43,7 @@
       "repopilotv3": [
         {
           "id": "repopilotv3.sessions",
-          "name": "Sessions",
+          "name": "RepoPilot",
           "type": "webview"
         }
       ]
@@ -66,6 +68,22 @@
       {
         "command": "repopilotv3.diagnostics",
         "title": "RepoPilotV3: Diagnostics"
+      },
+      {
+        "command": "repopilotv3.enableMcp",
+        "title": "RepoPilotV3: Enable MCP for Selected Project"
+      },
+      {
+        "command": "repopilotv3.mcpStatus",
+        "title": "RepoPilotV3: MCP Status"
+      },
+      {
+        "command": "repopilotv3.generateHarness",
+        "title": "RepoPilotV3: Generate / Update Workspace Harness"
+      },
+      {
+        "command": "repopilotv3.openWorkspaceHarness",
+        "title": "RepoPilotV3: Open Workspace .github"
       }
     ],
     "configuration": {
@@ -96,11 +114,17 @@
           "description": "Debounced/polling refresh interval for the active session package."
         }
       }
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "repopilotv3.repositories",
+        "label": "RepoPilot project repositories"
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p .",
-    "test": "npm run compile && node --test out/test/unit.js",
+    "test": "npm run compile && node --test out/test/unit.js out/test/setup.js",
     "test:editor": "node out/test/run.js",
     "package": "uv run --frozen --project .. --group dev python ../tools/build.py"
   },
@@ -110,6 +134,7 @@
     "@vscode/test-electron": "2.5.2",
     "@vscode/vsce": "3.2.2",
     "jsdom": "26.0.0",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "jsonc-parser": "3.3.1"
   }
 }

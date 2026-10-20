@@ -1,0 +1,42 @@
+[
+  {
+    "title": "Quick start",
+    "text": "Add a project folder, then create a session. Copy project instructions into the external WebUI project once. Paste the session starter into a new chat. The WebUI model registers its task and TODO. RepoPilot runs local tools; no model is connected."
+  },
+  {
+    "title": "Projects and sessions",
+    "text": "Projects binds one folder to its own sessions, private state and context packages. Use the project selector to switch folders and + Project to add one. Rename or remove a listing from Options \u2192 Project & execution. Removing a listing never deletes source or sessions. Archive/delete chats through the session drawer. Finish or explicitly stop running work before switching projects.\n\nPicture: 1 Projects/Documentation; 2 project selector and Add; 3 Sessions/Context files; 4 current chat, New session and Options; 5 saved session drawer.",
+    "image": "images/projects-guide.png",
+    "alt": "Numbered project navigation and session controls using synthetic content."
+  },
+  {
+    "title": "Send, Paste + Run and copying",
+    "text": "Send detects plain or fenced protocol requests and executes them through the same parser as Paste + Run. Ordinary prose is prepared for the WebUI. Malformed requests return correction errors. Run as model reply imports textbox content explicitly. Copy message for WebUI forwards JSON examples without execution. Paste + Run reads the clipboard. Each turn has one Copy button. Background refresh and restoring a chat never copy or execute anything.\n\nPicture: 1 text box; 2 Send; 3 Paste + Run; 4 TODO; 5 context update (estimate alongside); 6 Options.",
+    "image": "images/chat-guide.png",
+    "alt": "Numbered composer, copy, TODO and context controls using synthetic content."
+  },
+  {
+    "title": "Editable role prompts",
+    "text": "Options \u2192 Prompts has Copy Planning/Asking/Implementation/Review prompt. These copy the exact saved Markdown; there are no manual session modes or permission changes. Edit prompts opens a file under the selected project\u2019s private prompts directory. Save it before copying. Reset prompt to default requires confirmation and keeps the saved version under prompt-recovery. Upgrades preserve authored files."
+  },
+  {
+    "title": "Task and TODO",
+    "text": "The model uses task to register or resume the objective, then todo to initialize its checklist. Progress stays model-reported unless backed by local evidence. Options \u2192 Project & execution \u2192 Reset checklist archives the old items and retains requirements and validation. Continuation chats sharing that task must initialize TODO again. Local recovery checkpoint saves a decision when the model is unavailable."
+  },
+  {
+    "title": "Commands and patch approvals",
+    "text": "Commands require a local session grant. Stop cancels a running command. Review every proposed file in native diff tabs, then approve or decline the complete proposal. Dirty source editors must be saved before affected operations. Request freshness and hashes are rechecked. Validation evidence records actual local results; older snapshots become historical."
+  },
+  {
+    "title": "Context files and transfers",
+    "text": "Inside a project select Context files to inspect the chosen session\u2019s generated Markdown packages. Open file and Open folder reveal the actual published artifacts. Refresh or Update context regenerates them. UPLOAD means never confirmed, REPLACE means changed, KEEP means an existing confirmed transfer remains valid. Confirm transfers only after the external upload/paste. Generation does not update the external WebUI."
+  },
+  {
+    "title": "Context estimates and continuation",
+    "text": "The bottom bar shows estimated recorded content against your advisory threshold, not actual remote model usage. Generate handoff saves progress and context. Open a fresh external chat and confirm to create its new local identifier; it shares the task but requires new TODO initialization and command permission."
+  },
+  {
+    "title": "Copilot, MCP and troubleshooting",
+    "text": "Options \u2192 Copilot & MCP enables a project-bound MCP registration or previews workspace harness generation. Native Copilot tools handle editing and execution; RepoPilot MCP provides compact repository retrieval and checkpoints. Missing MCP APIs are reported separately from panel support. Use Maintenance \u2192 Diagnostics or Reconnect backend after inspecting interrupted work. Recovery never automatically replays edits or commands."
+  }
+]

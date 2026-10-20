@@ -12,11 +12,11 @@ uv run --frozen python examples/create_demo.py /tmp/repopilotv3-demo
 
 Alternatively create `greeter.py` with a small function and a failing test in a disposable folder. Install the single VSIX, open that folder in a trusted VS Code window, and open RepoPilot.
 
-If your VS Code workspace contains multiple projects, choose **⚙ → Select workspace** and browse to the one project you want RepoPilot to use. Its path appears in the options menu and is remembered after reload. Other folders remain open in VS Code. Hover a control to see its short purpose.
+If your VS Code workspace contains multiple projects, choose **⚙ → Project & execution → Add project folder** and browse to the one project you want RepoPilot to use. Its path appears in the options menu and is remembered after reload. Other folders remain open in VS Code. Hover a control to see its short purpose.
 
-Use **⚙ → Copy project prompt** and paste the result into your WebUI project's instructions once. This standalone document explains behavior, modes, TODOs, the JSON tools, approval and evidence rules. It stays below 8,000 characters. Repository maps and source remain separate context files.
+Use **⚙ → WebUI context → Copy project prompt** and paste the result into your WebUI project's instructions once. This standalone document explains behavior, TODOs, the JSON tools, approval and evidence rules. It stays below 8,000 characters. Repository maps and source remain separate context files.
 
-Click **New session**. It opens a chat and copies a short starter. Paste that into a new external chat within the configured WebUI project. It introduces this session and mode, then asks for the objective. It does not repeat the project instructions, protocol catalog or source map. No separate task/name/project dialogs are required.
+Click **New session**. It opens a chat and copies a short starter. Paste that into a new external chat within the configured WebUI project. It introduces this session identity, then asks for the objective. It does not repeat the project instructions, protocol catalog or source map. No separate task/name/project dialogs are required.
 
 The message input grows upward as text wraps, up to 30% of the panel height, then scrolls internally. It shrinks again when you shorten or send the message and resizes when the panel width changes.
 
@@ -31,13 +31,13 @@ The model can answer with prose and two JSON blocks:
 {"protocol_version":"1.0","request_id":"todo-1","tool":"todo","arguments":{"progress":{"items":[{"id":"inspect","text":"Inspect greeting and regression test","status":"active"},{"id":"fix","text":"Correct punctuation and verify tests","status":"pending"}]}}}}
 ```
 
-Copy the entire model reply and click **Paste + Run**. The model may also put both objects into one JSON fence, separated by a newline, or send an array of requests. The chat gets its name, the task becomes persistent and the TODO appears in the bottom bar. One pasted reply is one recorded conversation message, even with multiple tools. Tool calls, results and status messages appear together under one harness turn with one **Copy** button. It copies the complete saved turn, including results outside the displayed history page. Automatic copying uses the same complete turn; paste it back into the WebUI. Expand individual results for details without having to copy each fragment.
+Paste the entire model reply into the composer and click **Send**, or use **Paste + Run** directly from the clipboard. The model may also put both objects into one JSON fence, separated by a newline, or send an array of requests. The chat gets its name, the task becomes persistent and the TODO appears in the bottom bar. One pasted reply is one recorded conversation message, even with multiple tools. Tool calls, results and status messages appear together under one harness turn with one **Copy** button. It copies the complete saved turn, including results outside the displayed history page. Automatic copying uses the same complete turn; paste it back into the WebUI. Expand individual results for details without having to copy each fragment.
 
 Open **☰ Sessions** to switch chats. Each row has **Archive** and **× Delete** controls. Archive hides the chat; enable **Show archived** and choose **Restore** to bring it back. Delete asks for confirmation and removes that chat's transcript, draft and conversation counts. Shared tasks, validation/command evidence, immutable packages and recovery files remain. The same controls are available under **⚙** for the selected chat. Deleting the last chat returns to the empty view; creating another chat never replays the deleted requests.
 
 ## Change modes and retrieve only needed source
 
-New independent sessions start in **Planning**. Choose **Implementation** in the bottom bar when ready. RepoPilot emits “Mode changed to Implementation” with a compact prompt and copies it. Paste that into the WebUI. Asking and Review work the same way; modes guide the model without changing permissions or replacing the task.
+Use **Options → Prompts → Copy Planning prompt** when you want planning guidance. When ready, copy the Implementation prompt and paste it into the WebUI. Asking and Review work the same way. These copy exact project-owned Markdown and do not change session settings or permissions.
 
 The model can retrieve bounded source:
 
@@ -59,7 +59,7 @@ RepoPilot generates and counts the diff locally. `files` maps paths to complete 
 
 Paste + Run automatically opens a permanent native diff tab for every proposed file. Source is unchanged. Inspect the read-only original/proposed documents and choose **Approve whole proposal** in the chat. No file-picker step is needed. Dirty affected buffers or changed source prevent application.
 
-To run actual tests after approval, select **⚙ → Validation profile → python** beforehand. This approves the bundled pytest profile locally; dependencies are already present. Approval applies the complete proposal, runs that configured profile, and returns actual evidence. No profile means validation is explicitly not run. A failing profile does not undo an applied source change.
+To run actual tests after approval, select **⚙ → Project & execution → Validation profile → python** beforehand. This approves the bundled pytest profile locally; dependencies are already present. Approval applies the complete proposal, runs that configured profile, and returns actual evidence. No profile means validation is explicitly not run. A failing profile does not undo an applied source change.
 
 ## Run a command when needed
 
@@ -83,13 +83,13 @@ The bottom bar contains:
 
 Source/task changes refresh packages automatically. **Update context** refreshes immediately and opens the upload checklist. Use **Open folder** and upload/replace your chosen files. Compact packages contain repository maps, protocol/schema reference, focused task source, TODO and validation evidence. Optional full-source Markdown is selected through ⚙.
 
-Use **Copy instructions** or **⚙ → Copy project prompt** for the reusable project guidance. Session starters rely on those separately configured instructions. Local copying does not prove a remote paste or replace attachments. Choose **Confirm transfers** only after completing the exact external uploads/pastes. KEEP means confirmed content is still valid; UPLOAD/PASTE/REPLACE identify required action. A revised project prompt is flagged for replacement even when source files are unchanged.
+Use **Copy instructions** or **⚙ → WebUI context → Copy project prompt** for the reusable project guidance. Session starters rely on those separately configured instructions. Local copying does not prove a remote paste or replace attachments. Choose **Confirm transfers** only after completing the exact external uploads/pastes. KEEP means confirmed content is still valid; UPLOAD/PASTE/REPLACE identify required action. A revised project prompt is flagged for replacement even when source files are unchanged.
 
 ## Continue, recover and correct errors
 
 The model updates todo as work proceeds. Local build/test evidence remains independent from model-reported completion. At the default 40,000 observed estimated tokens, RepoPilot adds an advisory to the next tool reply and prepares a handoff packet; it does not block work. Change the threshold through the context meter or ⚙. The estimate cannot measure the WebUI's hidden retrieval, summaries or actual remaining capacity.
 
-Choose **⚙ → Generate Handoff**, open a fresh external chat in the configured project and confirm that it is open. The replacement session keeps the task/mode, gets its own identifier and continuation starter, and requires a new initial todo call and command grant. Its starter carries progress and evidence without repeating the project prompt. Copy/paste it and continue.
+Choose **⚙ → Session → Generate handoff**, open a fresh external chat in the configured project and confirm that it is open. The replacement session keeps the task, gets its own identifier and continuation starter, and requires a new initial todo call and command grant. Its starter carries progress and evidence without repeating the project prompt. Copy/paste it and continue.
 
 For malformed JSON, missing executables or stale source, RepoPilot provides a copy-ready cause and corrective next step. Paste it back so the model can repair its next call with a **new request ID**. All tool blocks validate before the first executes. Identical requests return saved results; conflicting ID reuse is rejected.
 
@@ -102,3 +102,38 @@ Harness Copy now provides a short summary followed by fenced `tool_results` JSON
 `search` is keyword search: use short identifiers. Use `query: "*"` for a bounded eligible-file list. `indexed_file_count: 0` means no eligible source was found; an empty `hits` list alone only means no matches. An intended empty project can proceed with additions using the returned snapshot and null base hashes.
 
 Generated export folders/cache are cleaned automatically once their combined size exceeds 512 MiB. Current and recent packages remain protected; use **Open folder** for the current generation rather than bookmarking an older upload directory. Cleanup never updates the external WebUI or deletes task/validation/recovery records.
+
+## Copilot setup without a manual session
+
+Select your individual project through **Project & execution → Add project folder**. Open **Copilot & MCP → Enable MCP for selected project**. If a legacy entry is found, keep it or preview the migration; unrelated entries stay intact. The native provider appears in the editor's MCP tool picker under the project-specific RepoPilot name. Use the editor's normal server trust/start controls.
+
+Choose **Generate / update workspace harness**, inspect its diff tabs and apply. Existing instructions outside the managed block remain. A conflicting local agent/hook requires review instead of overwrite. Use **Open workspace .github** to inspect results, **Open bundled harness** for the original static assets, and **MCP status** to see roots and launch paths. No manual chat session is required. Changing the selected folder does not redirect servers already serving other projects; enable or disable each root explicitly.
+
+## Project navigation and independent role prompts
+
+Open **Projects**, add a second disposable source folder, and switch between them using the selector. Each folder restores its own selected chat and draft. Inside a project, open **Context files** to inspect generated Markdown and use **Open file**, **Open folder**, **Refresh** and **Confirm transfers**. Removing a listing keeps all source and private session data.
+
+Use **Options → Prompts → Copy Implementation prompt** to send implementation guidance. There is no active mode. Use **Edit prompts**, change the Markdown, save it and copy again to verify that your saved text is used exactly. Reset restores the bundled default and retains a recovery copy.
+
+To practice checklist recovery, use **Options → Project & execution → Reset checklist**. Confirm that old items remain in task history and validation still appears. Paste the reset message into the WebUI and ask it to call `todo` with a new request ID before further tools.
+
+The **Documentation** tab contains these illustrated controls and searchable summaries:
+
+![Project navigation and session drawer](images/projects-guide.png)
+
+1. Projects / Documentation tabs.
+2. Folder-space selector and Add project.
+3. Sessions / Context files tabs.
+4. Current chat, New session and Options.
+5. Searchable saved-session drawer.
+
+![Chat input and context controls](images/chat-guide.png)
+
+1. Composer for pasted tool requests or developer prose.
+2. Send with automatic request detection.
+3. Paste + Run directly from the clipboard.
+4. Collapsible TODO.
+5. Update context beside observed context tracking.
+6. Grouped Options, including editable role prompts.
+
+These are annotated captures of the actual extension using synthetic source and session content.

@@ -10,6 +10,7 @@ export interface BackendHello {
   backend_version: string;
   workspace: string;
   initialized: boolean;
+  methods?: string[];
 }
 
 /** One Python process bound to one explicit workspace and host-owned state directory. */

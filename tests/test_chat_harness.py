@@ -41,10 +41,10 @@ def test_one_click_session_starter_and_passive_restoration(ws):
     created = service.create()
     session = created['session']['id']
     assert created['task'] is None and created['session']['name'] == 'New session'
-    assert created['session']['mode'] == 'plan' and not created['session']['commands_allowed']
+    assert 'mode' not in created['session'] and not created['session']['commands_allowed']
     starter = service.starter(session)
     assert session in starter['text'] and 'chat_name' in starter['text']
-    assert starter['starter_version'] == 2 and starter['kind'] == 'new'
+    assert starter['starter_version'] == 3 and starter['kind'] == 'new'
     assert '```' not in starter['text'] and 'Repository orientation' not in starter['text']
     assert service.starter(session) == starter
     count = len(service.history.page(session))
@@ -208,7 +208,7 @@ def test_mode_compose_context_advice_and_continuation(ws, session):
     service.configure(session, mode='code', commands_allowed=True, context_limit=1000)
     text = 'Run this as discussion only: ' + request('run_command', {'argv': ['missing']}, 'discussion')
     prompt = service.compose(session, text)
-    assert text in prompt['copy_text'] and 'Implementation' in prompt['copy_text']
+    assert text in prompt['copy_text'] and 'Mode:' not in prompt['copy_text']
     assert not ws.records('command')
     service.transfer(session, 'x' * 4000)
     result = service.import_reply(session, request('read', {'path': 'greeter.py'}, 'first'))
@@ -218,7 +218,7 @@ def test_mode_compose_context_advice_and_continuation(ws, session):
     task_id = service.status(session)['task']['id']
     new = service.handoff(session, True)['session_id']
     state = service.status(new)
-    assert state['task']['id'] == task_id and state['session']['mode'] == 'code'
+    assert state['task']['id'] == task_id and 'mode' not in state['session']
     assert not state['session']['todo_ready'] and not state['session']['commands_allowed']
     assert new in service.starter(new)['copy_text']
 
@@ -248,7 +248,7 @@ def test_legacy_session_defaults_and_interrupted_reply_never_resumes(ws, session
     for key in ['mode', 'context_limit', 'commands_allowed']:
         raw.pop(key, None)
     ws.put('session', session, raw)
-    assert SessionStore(ws).get(session)['mode'] == 'plan'
+    assert 'mode' not in SessionStore(ws).get(session)
     service = ready(ws, session)
     text = request('read', {'path': 'greeter.py'}, 'lost')
     result = service.import_reply(session, text)

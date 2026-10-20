@@ -100,7 +100,7 @@ def test_unchanged_prepare_survives_service_restart_and_transfer_counts_once(ws,
     second = WorkflowService(ws).prepare(session)
     assert second["unchanged"] and second["manifest"]["id"] == first["manifest"]["id"]
     name = "00_PROJECT_INSTRUCTIONS.md"
-    text = (Path(first["directory"]) / name).read_text()
+    text = (Path(first["directory"]) / name).read_text(encoding="utf-8")
     service.transfer(session, text)
     count = service.sessions.metrics(session)["events"]
     service.confirm(session, first["manifest"]["id"], {name: first["manifest"]["artifacts"][name]["hash"]})

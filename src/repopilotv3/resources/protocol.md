@@ -80,7 +80,7 @@ Missing permission pauses the reply with pending command details. After local pe
 
 Patch proposals also pause the reply for whole-proposal review. The developer sees native diff tabs and approves or declines. Validation follows application when a profile is configured. Do not queue dependent actions needing unknown values or claim a staged proposal is applied. Failed local actions stop later queued requests.
 
-Modes plan/ask/code/review are advisory. Changing mode emits a short prompt without modifying permissions. The local Send action prepares user prose for the WebUI; Paste + Run imports a model reply. The composer menu can process an edited reply.
+Send automatically imports request-shaped JSON and otherwise prepares prose for the WebUI. Malformed requests return correction errors. Paste + Run imports clipboard replies. Run as model reply explicitly imports textbox content; Copy message for WebUI forwards examples without execution. Role prompts are editable project files copied verbatim, with no mode or permission change. Reset checklist is a local, confirmed administrative action retaining task history and validation.
 
 ## Continuation and recovery
 

@@ -52,7 +52,7 @@ def test_new_starter_does_not_index_repeat_policy_or_invent_an_objective(ws, ses
     with ws.lock():
         starter = service.starter(session)
     text = starter["text"]
-    assert session in text and ws.root.name in text and "Planning" in text
+    assert session in text and ws.root.name in text and "Mode:" not in text
     assert "no task or objective" in text and "ask" in text.lower()
     assert "```" not in text and "Registered tools" not in text and "Public declarations" not in text
     assert ProjectInstructions().render() not in text
@@ -69,7 +69,7 @@ def test_legacy_combined_starter_is_replaced_only_on_explicit_request(ws, sessio
     service.status(session)
     assert service.history.preference("starter:" + session) == legacy
     fresh = service.starter(session)
-    assert fresh["starter_version"] == 2 and fresh["text"] != legacy["text"]
+    assert fresh["starter_version"] == 3 and fresh["text"] != legacy["text"]
     assert service.history.page(session)[0]["body"] == legacy
     assert service.history.preference("starter:" + session) == fresh
 

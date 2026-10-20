@@ -16,6 +16,193 @@
           ]
         },
         "method": {
+          "const": "harness.preview"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "repository_root": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "repository_state": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "server_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "harness.apply"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "plan_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "plan_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "harness.status"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "harness.recover"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "recovery_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "recovery_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
           "const": "sessions.configure"
         },
         "params": {
@@ -58,6 +245,265 @@
             "workspace",
             "bridge_version",
             "session_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "composer.preview"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "session_id",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "composer.submit"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "session_id",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "prompts.read"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "role": {
+              "enum": [
+                "planning",
+                "asking",
+                "implementation",
+                "review"
+              ]
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "role"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "prompts.reset"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "role": {
+              "enum": [
+                "planning",
+                "asking",
+                "implementation",
+                "review"
+              ]
+            },
+            "expected_hash": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "role",
+            "expected_hash"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "todo.reset"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "session_id",
+            "expected_revision"
           ],
           "additionalProperties": false
         }

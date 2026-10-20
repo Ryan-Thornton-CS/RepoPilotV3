@@ -71,11 +71,11 @@ def test_static_host_commands_use_stdin():
     assert isinstance(server["args"], list)
 
 
-async def test_mcp_has_only_four_tools_and_shared_source(ws):
+async def test_mcp_has_setup_status_and_four_focused_tools(ws):
     """Use the real MCP client to verify retrieval and persistent fallback state."""
     async with Client(create_server(ws)) as client:
         names = {t.name for t in await client.list_tools()}
-        assert names == {"search_repository", "read_source", "get_context", "task_checkpoint"}
+        assert names == {"setup_repository", "repository_status", "search_repository", "read_source", "get_context", "task_checkpoint"}
         source = await client.call_tool("read_source", {"path": "greeter.py"})
         assert source.data["data"]["hash"] == RepositoryTools(ws).read("greeter.py")["hash"]
         task = await client.call_tool("task_checkpoint", {"objective": "Fix greeting"})

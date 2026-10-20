@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import tempfile
+import tomllib
 import threading
 import zipfile
 from pathlib import Path
@@ -31,10 +32,10 @@ def verify(vsix: Path, root: Path) -> dict:
                     member = "extension/" + path.relative_to(root).as_posix()
                     assert archive.read(member) == path.read_bytes(), member
         for name in ["out/src/extension.js", "out/src/backend.js", "out/src/runtime.js",
-                     "media/panel.js", "media/panel.css", "LICENSE.txt"]:
+                     "media/panel.js", "media/panel.css", "out/src/mcp.js", "out/src/configuration.js", "out/vendor/jsonc-parser/main.js", "out/vendor/jsonc-parser/LICENSE.md", "LICENSE.txt"]:
             assert archive.read("extension/" + name)
         manifest = json.loads(archive.read("extension/backend/manifest.json"))
-        assert manifest["schema_version"] == "1.0" and manifest["backend_version"] == "0.2.10"
+        assert manifest["schema_version"] == "1.0" and manifest["backend_version"] == package["version"] == tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
         assert set(manifest["platforms"]) == set(lock["platforms"])
         for platform, item in manifest["platforms"].items():
             assert item["archive_sha256"] == lock["platforms"][platform]["sha256"]
@@ -63,7 +64,7 @@ def smoke_bundle(vsix: Path) -> dict:
         with zipfile.ZipFile(vsix) as archive:
             manifest = json.loads(archive.read("extension/backend/manifest.json"))
             for entry in archive.infolist():
-                if entry.filename.startswith("extension/backend/" + platform + "/"):
+                if entry.filename.startswith("extension/backend/" + platform + "/") or entry.filename.startswith("extension/harness/") or entry.filename == "extension/backend/manifest.json":
                     archive.extract(entry, root)
                     permissions = (entry.external_attr >> 16) & 0o777
                     if permissions and os.name != "nt":
@@ -185,8 +186,9 @@ def smoke(python: str) -> dict:
         copied = rpc("history.copy_turn", {"session_id": chat, "entry_id": "reply-result:" + imported["reply_id"]})
         copied_results = copied["copy_data"]["results"]
         assert [result["request_id"] for result in copied_results] == ["new-task", "new-todo"]
-        changed_mode = rpc("sessions.configure", {"session_id": chat, "mode": "code"})
-        assert "Mode changed to Implementation" in changed_mode["copy_text"]
+        role_prompt = rpc("prompts.read", {"role": "implementation"})
+        assert "Implementation" in role_prompt["text"]
+        assert rpc("composer.preview", {"session_id": chat, "text": "Discuss next steps"})["route"] == "message"
         tool = {"protocol_version": "1.0", "request_id": "new-command", "tool": "run_command",
                 "arguments": {"argv": ["python", "-c", "from pathlib import Path; Path('command_observed.py').write_text('command_value = 42\\n'); print('actual bundled command')"]}}
         pending = rpc("replies.import", {"session_id": chat, "text": json.dumps(tool)})
@@ -271,12 +273,37 @@ def smoke(python: str) -> dict:
         assert all(row["id"] != session for row in rpc("sessions.list", {}))
         assert rpc("sessions.status", {"session_id": continuation["session_id"]})["task"]["id"] == task
         assert not (root / ".github").exists() and not (root / ".mcp.json").exists()
+        harness_preview = rpc("harness.preview", {"server_name": "repopilotv3-bundle"})
+        assert not (root / ".github").exists() and not harness_preview["conflicts"]
+        harness_result = rpc("harness.apply", {"plan_id": harness_preview["plan_id"]})
+        assert harness_result["status"] == "generated" and (root / ".github/agents/repopilotv3-code.agent.md").exists()
+        assert not (root / ".mcp.json").exists()
+        bootstrap = base / "MCP fresh project"
+        bootstrap.mkdir()
+        (bootstrap / "sample.py").write_text('"""Standalone MCP fixture."""\n', encoding="utf-8")
+        probe = """
+import asyncio, sys
+from fastmcp import Client
+
+async def main():
+    config = {"mcpServers": {"probe": {"command": sys.executable, "args": ["-I", "-B", "-m", "repopilotv3", "--repo", sys.argv[1], "mcp", "serve"]}}}
+    async with Client(config) as client:
+        assert len(await client.list_tools()) == 6
+        assert not (await client.call_tool("repository_status")).data["initialized"]
+        binding = (await client.call_tool("setup_repository")).data
+        assert binding["initialized"] and not binding["harness_written"]
+        result = await client.call_tool("read_source", {"path": "sample.py", "repository_id": binding["repository_id"]})
+        assert "Standalone MCP fixture" in result.data["data"]["text"]
+asyncio.run(main())
+"""
+        subprocess.run([python, "-I", "-B", "-c", probe, str(bootstrap)], cwd=base, check=True, timeout=60)
         return {
             "bundled_backend_workflow": "passed",
-            "chat_workflow": "starter; task/TODO/naming; mode; permission; actual command and observed source diff",
+            "standalone_mcp": "real stdio discovery; private setup; bounded retrieval",
+            "chat_workflow": "starter; task/TODO/naming; editable role prompts; permission; actual command and observed source diff",
             "validation": "actual local check and one JUnit-evidenced pytest",
             "handoff": "independent chat; retained task",
-            "harness_written": False,
+            "harness_written": "only after explicit management preview/apply",
         }
 
 
@@ -287,7 +314,8 @@ def main() -> None:
     parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).parents[1]
-    vsix = args.vsix or root / "dist/repopilotv3-0.2.10.vsix"
+    version = tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
+    vsix = args.vsix or root / f"dist/repopilotv3-{version}.vsix"
     result = verify(vsix, root)
     if args.smoke:
         result["smoke"] = smoke_bundle(vsix)

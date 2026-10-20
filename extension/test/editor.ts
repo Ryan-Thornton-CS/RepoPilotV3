@@ -37,7 +37,7 @@ export async function run(): Promise<void> {
     const copied = await client.request('history.copy_turn', { session_id: session, entry_id: final.id });
     const results = copied.copy_data.results;
     assert.deepEqual(results.map((result: any) => result.request_id), ['task', 'todo']);
-    assert.match((await client.request('sessions.configure', { session_id: session, mode: 'code' })).copy_text, /Implementation/);
+    assert.match((await client.request('prompts.read', { role: 'implementation' })).text, /Implementation/);
     fs.writeFileSync(path.join(root, 'alpha.py'), 'value = 1\n');
     fs.writeFileSync(path.join(root, 'beta.py'), 'value = 1\n');
     const first = (await client.request('manual.execute', { session_id: session, text: frame('read', { path: 'alpha.py' }, 'read-alpha') })).data;
@@ -115,6 +115,16 @@ export async function run(): Promise<void> {
         assert.match(packet.copy_text, /Project: `Selected project`/);
         assert.ok(!packet.copy_text.includes('alpha.py'));
       } finally { await projectClient.close(); }
+      const harnessPreview = await client.request('harness.preview', { server_name: 'repopilotv3-native-test' });
+      assert.ok(!harnessPreview.conflicts.length && !fs.existsSync(path.join(root, '.github')));
+      await client.request('harness.apply', { plan_id: harnessPreview.plan_id });
+      assert.ok(fs.existsSync(path.join(root, '.github/agents/repopilotv3-code.agent.md')));
+      assert.ok(!fs.existsSync(path.join(root, '.mcp.json')));
+      assert.ok(commands.includes('repopilotv3.enableMcp') && commands.includes('repopilotv3.generateHarness'));
+      if (typeof (vscode as any).lm?.registerMcpServerDefinitionProvider === 'function') {
+        await vscode.commands.executeCommand('repopilotv3.enableMcp');
+        assert.ok(!fs.existsSync(path.join(root, '.vscode/mcp.json')));
+      }
       console.log(`RepoPilotV3 extension-host checks passed on VS Code ${vscode.version}`);
     } finally { registration.dispose(); }
   } finally { client.dispose(); }

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "repopilotv3"
-version = "0.2.10"
+version = "0.2.12"
 description = "Static Copilot harness and a VS Code manual WebUI workflow"
 readme = "README.md"
 requires-python = ">=3.12"

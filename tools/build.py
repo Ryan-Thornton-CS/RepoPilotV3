@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 from packaging.markers import default_environment
@@ -26,6 +27,7 @@ class BundleBuilder:
     def __init__(self, root: Path, offline: bool = False):
         """Keep all generated binaries in ignored build/staging directories."""
         self.root = root
+        self.version = tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
         self.cache = root / ".tools/bundle"
         self.extension = root / "extension"
         self.offline = offline
@@ -261,10 +263,10 @@ class BundleBuilder:
         if self.offline:
             build.append("--offline")
         self.run(build)
-        wheel = backend_wheels / "repopilotv3-0.2.10-py3-none-any.whl"
+        wheel = backend_wheels / f"repopilotv3-{self.version}-py3-none-any.whl"
         shutil.rmtree(self.extension / "backend", ignore_errors=True)
         (self.extension / "backend").mkdir()
-        manifest = {"schema_version": "1.0", "backend_version": "0.2.10", "platforms": {}}
+        manifest = {"schema_version": "1.0", "backend_version": self.version, "platforms": {}}
         for platform, item in self.lock["platforms"].items():
             print("Staging " + platform, flush=True)
             manifest["platforms"][platform] = self.runtime(platform, item, requirements, wheel)
@@ -276,8 +278,11 @@ class BundleBuilder:
             shutil.copytree(self.root / name, self.extension / name)
         shutil.rmtree(self.extension / "out", ignore_errors=True)
         self.run([self.npm, "run", "compile"], cwd=self.extension)
+        vendor = self.extension / "out/vendor/jsonc-parser"
+        shutil.copytree(self.extension / "node_modules/jsonc-parser/lib/umd", vendor, dirs_exist_ok=True)
+        shutil.copyfile(self.extension / "node_modules/jsonc-parser/LICENSE.md", vendor / "LICENSE.md")
         (self.root / "dist").mkdir(exist_ok=True)
-        result = self.root / "dist/repopilotv3-0.2.10.vsix"
+        result = self.root / f"dist/repopilotv3-{self.version}.vsix"
         node = shutil.which("node")
         if not node:
             raise RuntimeError("Node.js is required only for building the extension.")

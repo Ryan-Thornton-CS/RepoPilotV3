@@ -93,7 +93,7 @@ class HookAdapter:
             if (
                 observed
                 and observed[0] == monitor.get("run_id")
-                and "repopilotv3" in tool
+                and "repopilot" in tool
                 and observed[1] in tool
             ):
                 if "task_checkpoint" in tool:

@@ -3,6 +3,7 @@ export interface PanelMessage {
   action: string;
   text?: string;
   sessionId?: string;
+  projectId?: string;
   entryId?: string;
   patchId?: string;
   path?: string;
@@ -12,7 +13,7 @@ export interface PanelMessage {
   commandId?: string;
 }
 
-const actions = new Set(['send', 'resolve', 'mode', 'starter', 'projectPrompt', 'limit', 'permission', 'project', 'commandDiff',
+const actions = new Set(['projectSelect', 'projectAdd', 'projectRename', 'projectRemove', 'roleCopy', 'roleEdit', 'roleReset', 'todoReset', 'forward', 'contextFile', 'mcpEnable', 'mcpDisable', 'mcpStatus', 'mcpConfig', 'generateHarness', 'harnessWorkspace', 'harnessRecover', 'retention', 'send', 'resolve', 'starter', 'projectPrompt', 'limit', 'permission', 'project', 'commandDiff',
   'stop', 'diagnostics', 'settings', 'ready', 'setup', 'new', 'select', 'rename', 'archive', 'delete', 'search', 'run',
   'pasteRun', 'note', 'draft', 'copy', 'prepare', 'instructions', 'package', 'confirm', 'handoff',
   'review', 'approve', 'reject', 'recover', 'source', 'todo', 'history', 'workspace', 'harness', 'restart']);
@@ -22,15 +23,17 @@ export function panelMessage(value: unknown): PanelMessage | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) { return; }
   const p = value as Record<string, unknown>;
   if (typeof p.action !== 'string' || !actions.has(p.action)) { return; }
-  if (Object.keys(p).some(k => !['action', 'text', 'sessionId', 'entryId', 'patchId', 'path', 'line', 'value', 'replyId', 'commandId'].includes(k))) { return; }
-  for (const key of ['text', 'sessionId', 'entryId', 'patchId', 'path', 'replyId', 'commandId']) {
+  if (Object.keys(p).some(k => !['action', 'text', 'sessionId', 'entryId', 'patchId', 'path', 'line', 'value', 'replyId', 'commandId', 'projectId'].includes(k))) { return; }
+  for (const key of ['text', 'sessionId', 'entryId', 'patchId', 'path', 'replyId', 'commandId', 'projectId']) {
     if (p[key] !== undefined && (typeof p[key] !== 'string' || (p[key] as string).length > (key === 'text' ? 2500000 : 1000))) { return; }
   }
   if (p.line !== undefined && (!Number.isInteger(p.line) || (p.line as number) < 1 || (p.line as number) > 10000000)) { return; }
   if (p.value !== undefined && typeof p.value !== 'boolean') { return; }
   if (['select', 'draft'].includes(p.action) && typeof p.sessionId !== 'string') { return; }
-  if (['send', 'mode', 'run', 'note', 'draft', 'search'].includes(p.action) && typeof p.text !== 'string') { return; }
-  if (p.action === 'mode' && !['plan', 'ask', 'code', 'review'].includes(String(p.text))) { return; }
+  if (['send', 'forward', 'run', 'note', 'draft', 'search', 'roleCopy'].includes(p.action) && typeof p.text !== 'string') { return; }
+  if (p.action === 'roleCopy' && !['planning', 'asking', 'implementation', 'review'].includes(String(p.text))) { return; }
+  if (p.action === 'projectSelect' && typeof p.projectId !== 'string') { return; }
+  if (p.action === 'contextFile' && typeof p.path !== 'string') { return; }
   if (p.action === 'resolve' && (typeof p.replyId !== 'string' || typeof p.value !== 'boolean')) { return; }
   if (p.action === 'commandDiff' && typeof p.commandId !== 'string') { return; }
   if (['review', 'approve', 'reject', 'recover'].includes(p.action) && typeof p.patchId !== 'string') { return; }

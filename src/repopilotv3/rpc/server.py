@@ -18,9 +18,18 @@ from repopilotv3.workflow.service import WorkflowService
 STRING = {"type": "string", "minLength": 1, "maxLength": 2500000}
 SESSION = {"session_id": STRING}
 METHODS = {
+    "harness.preview": ({"repository_root": STRING, "repository_state": STRING, "server_name": STRING}, []),
+    "harness.apply": ({"plan_id": STRING}, ["plan_id"]),
+    "harness.status": ({}, []),
+    "harness.recover": ({"recovery_id": STRING}, ["recovery_id"]),
     "sessions.configure": ({**SESSION, "mode": {"enum": ["plan", "ask", "code", "review"]},
                             "context_limit": {"type": "integer", "minimum": 1000, "maximum": 2000000},
                             "commands_allowed": {"type": "boolean"}, "project": {**STRING, "maxLength": 2000}}, ["session_id"]),
+    "composer.preview": ({**SESSION, "text": STRING}, ["session_id", "text"]),
+    "composer.submit": ({**SESSION, "text": STRING}, ["session_id", "text"]),
+    "prompts.read": ({"role": {"enum": ["planning", "asking", "implementation", "review"]}}, ["role"]),
+    "prompts.reset": ({"role": {"enum": ["planning", "asking", "implementation", "review"]}, "expected_hash": STRING}, ["role", "expected_hash"]),
+    "todo.reset": ({**SESSION, "expected_revision": {"type": "integer", "minimum": 0}}, ["session_id", "expected_revision"]),
     "prompts.starter": (SESSION, ["session_id"]),
     "prompts.project": ({}, []),
     "prompts.compose": ({**SESSION, "text": STRING}, ["session_id", "text"]),
@@ -75,6 +84,8 @@ METHODS = {
 }
 # Slow repository operations share one executor; cheap state/history reads remain responsive.
 SLOW = {
+    "composer.submit", "prompts.read", "prompts.reset", "todo.reset",
+    "harness.preview", "harness.apply", "harness.recover",
     "prompts.starter", "prompts.compose", "replies.import", "replies.resolve", "commands.diffs",
     "setup",
     "manual.execute",
@@ -175,12 +186,30 @@ class BridgeServer:
         if self.service is None:
             raise PilotError("Run setup to initialize private state first", "not_initialized")
         service = self.service
+        if method.startswith("harness."):
+            from repopilotv3.integrations.harness import HarnessManager
+
+            manager = HarnessManager(self.ws)
+            if method == "harness.status":
+                return manager.status()
+            with self.ws.lock():
+                return getattr(manager, method.split('.')[1])(**p)
+        if method in {"prompts.read", "prompts.reset"}:
+            from repopilotv3.workflow.roles import RolePrompts
+
+            return getattr(RolePrompts(self.ws), method.split(".")[1])(**p)
         if method == "prompts.project":
             from repopilotv3.exports.instructions import ProjectInstructions
 
             return ProjectInstructions().describe()
         if "session_id" in p and method != "sessions.delete":
             service.sessions.get(p["session_id"])
+        if method == "composer.preview":
+            return service.submission_preview(p["text"])
+        if method == "composer.submit":
+            return service.submit(**p)
+        if method == "todo.reset":
+            return service.reset_checklist(**p)
         if method == "sessions.configure":
             return service.configure(**p)
         if method == "prompts.starter":
@@ -279,7 +308,7 @@ class BridgeServer:
             result = self.call(method, params)
             self.emit({"jsonrpc": "2.0", "id": message["id"], "result": result})
         except Exception as exc:
-            refresh_only = method in {"exports.prepare", "prompts.starter", "patch.review", "commands.diffs", "replies.preview", "history.copy_turn"}
+            refresh_only = method in {"exports.prepare", "prompts.starter", "patch.review", "commands.diffs", "replies.preview", "history.copy_turn", "harness.preview", "harness.status"}
             safe_retry = refresh_only and getattr(exc, "code", None) == "busy"
             if self.service and params.get("session_id") and not safe_retry:
                 try:
