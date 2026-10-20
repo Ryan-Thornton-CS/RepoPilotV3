@@ -4,6 +4,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { canonicalPath } from '../src/paths';
 import { configuration, changeProperty, applyConfiguration } from '../src/configuration';
 
 const Module = require('node:module');
@@ -96,8 +97,8 @@ test('native provider registration is explicit, trusted and independent per proj
   assert.equal(definitions.length, 2);
   assert.equal(definitions[0].label, repositoryServerName(root));
   assert.ok(path.isAbsolute(definitions[0].command));
-  assert.equal(definitions[0].args[definitions[0].args.indexOf('--repo') + 1], root);
-  assert.equal(definitions[1].args[definitions[1].args.indexOf('--repo') + 1], second);
+  assert.equal(canonicalPath(definitions[0].args[definitions[0].args.indexOf('--repo') + 1]), canonicalPath(root));
+  assert.equal(canonicalPath(definitions[1].args[definitions[1].args.indexOf('--repo') + 1]), canonicalPath(second));
   assert.equal(fs.existsSync(path.join(root, '.mcp.json')), false);
   native.workspace.isTrusted = false;
   assert.deepEqual(await provider.provideMcpServerDefinitions(), []);
@@ -164,7 +165,7 @@ test('settings groups retain hover help and expose setup without a session', () 
   dom.window.acquireVsCodeApi = () => ({ postMessage: (value: any) => sent.push(value), getState: () => null, setState() {} });
   dom.window.eval(fs.readFileSync(path.resolve(__dirname, '../../media/panel.js'), 'utf8'));
   const groups = [...dom.window.document.querySelectorAll('#options > details > summary')].map((item: any) => item.textContent);
-  assert.deepEqual(groups, ['Session', 'Prompts', 'WebUI context', 'Copilot & MCP', 'Project & execution', 'Maintenance']);
+  assert.deepEqual(groups, ['Copilot & MCP', 'Projects', 'Maintenance']);
   const enable = dom.window.document.querySelector('[data-action="mcpEnable"]');
   assert.ok(enable.title); enable.click(); assert.equal(sent.at(-1).action, 'mcpEnable');
   dom.window.close();

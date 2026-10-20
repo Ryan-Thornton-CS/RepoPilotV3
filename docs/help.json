@@ -5,44 +5,44 @@
   },
   {
     "title": "Projects and sessions",
-    "text": "Projects binds one folder to its own sessions, private state and context packages. Use the project selector to switch folders and + Project to add one. Rename or remove a listing from Options \u2192 Project & execution. Removing a listing never deletes source or sessions. Archive/delete chats through the session drawer. Finish or explicitly stop running work before switching projects.\n\nPicture: 1 Projects/Documentation; 2 project selector and Add; 3 Sessions/Context files; 4 current chat, New session and Options; 5 saved session drawer.",
+    "text": "Each project binds a folder to its sessions, private state and context packages. Use the project selector and Add project. Its adjacent menu offers Rename and Remove project; removal preserves folders, state, sessions and MCP registrations. Finish or stop running work before switching/removing projects. Archive/delete chats in the session drawer or Chat menu.\n\nPicture: 1 Projects/Documentation; 2 project selector, Add and project actions; 3 Sessions/Context files; 4 chat header; 5 saved sessions with a fixed search header.",
     "image": "images/projects-guide.png",
     "alt": "Numbered project navigation and session controls using synthetic content."
   },
   {
     "title": "Menus and keyboard shortcuts",
-    "text": "Settings opens directly below the cogwheel and scrolls within the available space. Escape dismisses Settings, the session drawer, composer actions, TODO and context upload checklist, returning focus to the opening control. Clicking outside also dismisses menus. Only one custom menu stays open at a time; Escape never submits text or stops a command.",
+    "text": "Chat, Prompts, Execution, TODO and Context files sit beside the composer. Their menus open upward. Settings holds Projects, Copilot & MCP and Maintenance, opening below its cogwheel. Escape closes all menus/drawers and restores opener focus. Clicking outside also closes menus. Search headers stay fixed above their scrolling results. Escape never submits a message or stops a command.",
     "image": "images/settings-guide.png",
     "alt": "Settings anchored below the cogwheel, with the menu and opening button outlined in red."
   },
   {
     "title": "Send, Paste + Run and copying",
-    "text": "Send detects plain or fenced protocol requests and executes them through the same parser as Paste + Run. Ordinary prose is prepared for the WebUI. Malformed requests return correction errors. Run as model reply imports textbox content explicitly. Copy message for WebUI forwards JSON examples without execution. Paste + Run reads the clipboard. Each turn has one Copy button. Background refresh and restoring a chat never copy or execute anything.\n\nPicture: 1 text box; 2 Send; 3 Paste + Run; 4 TODO; 5 context update (estimate alongside); 6 Options.",
+    "text": "Send detects plain or fenced protocol requests and executes them through the same parser as Paste + Run. Ordinary prose is prepared for the WebUI. Malformed requests return correction errors. Run as model reply imports textbox content explicitly. Copy message for WebUI forwards JSON examples without execution. Paste + Run reads the clipboard. Each turn has one Copy button. Background refresh and restoring a chat never copy or execute anything.\n\nPicture: 1 text box; 2 Send; 3 Paste + Run; 4 TODO; 5 automatic context checklist (estimate alongside); 6 Chat, Prompts and Execution menus.",
     "image": "images/chat-guide.png",
     "alt": "Numbered composer, copy, TODO and context controls using synthetic content."
   },
   {
     "title": "Editable role prompts",
-    "text": "Options \u2192 Prompts has Copy Planning/Asking/Implementation/Review prompt. These copy the exact saved Markdown; there are no manual session modes or permission changes. Edit prompts opens a file under the selected project\u2019s private prompts directory. Save it before copying. Reset prompt to default requires confirmation and keeps the saved version under prompt-recovery. Upgrades preserve authored files."
+    "text": "Prompts beside the composer offers Copy Planning/Asking/Implementation/Review prompt and Copy project prompt. These copy exact saved guidance without changing permissions or session modes. Edit prompts opens project-owned Markdown; save before copying. Reset requires confirmation and preserves a recovery copy. Upgrades keep authored files. Project instructions are available before creating a chat."
   },
   {
     "title": "Task and TODO",
-    "text": "The model uses task to register or resume the objective, then todo to initialize its checklist. Progress stays model-reported unless backed by local evidence. Options \u2192 Project & execution \u2192 Reset checklist archives the old items and retains requirements and validation. Continuation chats sharing that task must initialize TODO again. Local recovery checkpoint saves a decision when the model is unavailable."
+    "text": "The model calls task to register/resume the objective, then todo to initialize its checklist. Progress remains model-reported unless backed by local evidence. TODO → Reset checklist confirms and archives old items, retaining requirements, decisions and validation. Chats sharing the task must initialize TODO again. Execution → Recovery checkpoint saves local progress when the model is unavailable."
   },
   {
     "title": "Commands and patch approvals",
-    "text": "Commands require a local session grant. Stop cancels a running command. Review every proposed file in native diff tabs, then approve or decline the complete proposal. Dirty source editors must be saved before affected operations. Request freshness and hashes are rechecked. Validation evidence records actual local results; older snapshots become historical."
+    "text": "Execution chooses the approved validation profile and manages the local command grant. Stop cancels a running command. Native diff tabs open automatically for proposed files; approve or decline the whole proposal. Approval runs the already-selected validation profile. Dirty source editors need saving. Validation records actual results; later source changes make evidence historical."
   },
   {
     "title": "Context files and transfers",
-    "text": "Inside a project select Context files to inspect the chosen session\u2019s generated Markdown packages. Open file and Open folder reveal the actual published artifacts. Refresh or Update context regenerates them. UPLOAD means never confirmed, REPLACE means changed, KEEP means an existing confirmed transfer remains valid. Confirm transfers only after the external upload/paste. Generation does not update the external WebUI."
+    "text": "Context files beside the composer opens the automatically maintained upload checklist. UPLOAD means unconfirmed, REPLACE means changed and KEEP means a confirmed transfer remains valid. Open folder, copy instructions and confirm completed transfers here. Package settings chooses external scope and optional full source. Refreshes coalesce, defer while busy and retry automatically; failures show Retry refresh. The project Context files tab also opens individual artifacts. Local generation/copying never updates the external WebUI or confirms uploads."
   },
   {
     "title": "Context estimates and continuation",
-    "text": "The circular context indicator fills as recorded estimated tokens increase. Hover or keyboard-focus it for \u201cContext window: % full\u201d and used/limit token counts. This uses the configured advisory limit, not a measured remote model window. Click the circle to change that limit. The ring caps at full while the tooltip still reports usage over 100%. Recorded uploads/messages count once; generation alone adds no usage. Generate handoff saves progress and context. Open a fresh external chat and confirm to create its new local identifier; it shares the task but requires new TODO initialization and command permission."
+    "text": "The ring shows recorded estimated tokens against the advisory limit. Hover/focus for percentage and token counts; click to change the limit. Remote model capacity is unknown. At the threshold, RepoPilot prepares a handoff and shows Continue in new chat. Open the external chat and confirm; the replacement opens with its handoff first. It retains the task but has a distinct chat identifier, initial TODO requirement and fresh command grant. Chat → Generate handoff is available earlier. Nothing forces a rollover."
   },
   {
     "title": "Copilot, MCP and troubleshooting",
-    "text": "Options \u2192 Copilot & MCP enables a project-bound MCP registration or previews workspace harness generation. Native Copilot tools handle editing and execution; RepoPilot MCP provides compact repository retrieval and checkpoints. Missing MCP APIs are reported separately from panel support. Use Maintenance \u2192 Diagnostics or Reconnect backend after inspecting interrupted work. Recovery never automatically replays edits or commands."
+    "text": "Options → Copilot & MCP enables a project-bound MCP registration or previews workspace harness generation. Native Copilot tools handle editing and execution; RepoPilot MCP provides compact repository retrieval and checkpoints. Missing MCP APIs are reported separately from panel support. Use Maintenance → Diagnostics or Reconnect backend after inspecting interrupted work. Recovery never automatically replays edits or commands."
   }
 ]

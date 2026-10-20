@@ -8,6 +8,10 @@ let entries = new Map();
 let firstRender = true;
 let draftTimer;
 let searchTimer;
+let contextRefresh = {};
+let packageStale = false;
+let packageDirectory = '';
+const continuing = new Set();
 const streams = new Map();
 const send = (action, extra = {}) => vscode.postMessage({ action, ...extra });
 const descriptions = Object.freeze({
@@ -52,7 +56,7 @@ const descriptions = Object.freeze({
   stop: 'Cancel a running command.',
   copy: 'Copy this entire turn, including its tool results, errors and continuation guidance.',
   history: 'Show older transcript entries.',
-  prepare: 'Refresh exports and show the upload checklist.',
+  prepare: 'Retry local context generation; external uploads still require confirmation.',
   package: 'Open the generated upload package.',
   instructions: 'Copy the WebUI project prompt.',
   confirm: 'Record files you actually pasted or uploaded.',
@@ -100,6 +104,7 @@ function resizeComposer() {
   input.style.height = `${Math.min(maximum, Math.max(minimum, contentHeight))}px`;
   input.style.overflowY = contentHeight > maximum ? 'auto' : 'hidden';
   if (atEnd) transcript.scrollTop = transcript.scrollHeight;
+  sizeMenus();
 }
 
 /** Build DOM exclusively through textContent for untrusted tool/source/model values. */
@@ -177,7 +182,7 @@ function card(entry) {
     const details = node('details'); details.append(node('summary', body.request_id || 'Tool request'), node('pre', body.text)); element.append(details);
   } else {
     const oldBusyRefresh = body.action === 'operation_failed' && body.method === 'exports.prepare' && body.error?.code === 'busy';
-    const text = oldBusyRefresh ? 'An earlier context refresh found the repository busy. Use Update context to refresh it now.' : kind === 'result' ? summary(body) : body.text || (body.error ? `${body.error.code || 'Error'}: ${body.error.message || body.error}` : body.action) || 'Local event';
+    const text = oldBusyRefresh ? 'An earlier context refresh found the repository busy. Context refresh will retry automatically; open Context files for status.' : kind === 'result' ? summary(body) : body.text || (body.error ? `${body.error.code || 'Error'}: ${body.error.message || body.error}` : body.action) || 'Local event';
     if (String(text).length > 1100) {
       const details = node('details'); details.append(node('summary', body.action === 'starter' ? 'Session starter · copy into your WebUI' : String(text).slice(0, 120) + '…'), formatted(text)); element.append(details);
     } else element.append(formatted(text));
@@ -251,7 +256,7 @@ function renderPending(pending) {
     const article = node('article', undefined, 'approval');
     const action = reply.pending;
     article.append(node('strong', action.kind === 'patch' ? 'Review source changes' : 'Allow commands for this session?'));
-    if (action.kind === 'command') article.append(node('pre', action.argv.join(' ')), node('p', `Working directory: ${action.cwd}`), node('p', 'Commands run with your account permissions and may modify files or use the network. Revoke permission from ⚙ at any time.'));
+    if (action.kind === 'command') article.append(node('pre', action.argv.join(' ')), node('p', `Working directory: ${action.cwd}`), node('p', 'Commands run with your account permissions and may modify files or use the network. Revoke permission from Execution at any time.'));
     else article.append(node('p', 'Native diff tabs show every proposed file. Approval applies the whole proposal and runs the configured validation profile.'));
     article.append(button(action.kind === 'patch' ? 'Approve whole proposal' : 'Allow commands for this session', 'resolve', { replyId: reply.reply_id, value: true }),
       button('Decline', 'resolve', { replyId: reply.reply_id, value: false }));
@@ -278,6 +283,16 @@ function contextMeter(metrics = {}, active = false) {
   describe(meter, tooltip);
 }
 
+/** Show passive refresh progress without treating local publication as an external transfer. */
+function packageStatus() {
+  const state = contextRefresh.state || (packageStale ? 'queued' : packageDirectory ? 'current' : 'queued');
+  const labels = { refreshing: 'Refreshing context automatically', queued: 'Waiting for automatic refresh', current: 'Context files current', failed: 'Context refresh failed' };
+  byId('freshness').textContent = (labels[state] || labels.queued) + (contextRefresh.error ? ': ' + contextRefresh.error : '') +
+    (packageDirectory ? '\n' + packageDirectory : '');
+  byId('retry-context').hidden = state !== 'failed';
+  for (const control of document.querySelectorAll('#context-page [data-action="prepare"]')) control.hidden = state !== 'failed';
+}
+
 /** Restore history and bottom-bar state without overwriting a draft during background refresh. */
 function render(message) {
   const changed = session !== message.selected;
@@ -299,12 +314,14 @@ function render(message) {
   if (!session) {
     entries.clear(); streams.clear(); firstRender = true;
     byId('title').textContent = 'RepoPilotV3'; byId('request').value = ''; resizeComposer();
-    byId('entries').replaceChildren(node('p', 'Start a new session or select a saved chat. First-time project setup: ⚙ → Copy project prompt; paste it into WebUI project instructions once.', 'empty'));
+    byId('entries').replaceChildren(node('p', 'Start a new session or select a saved chat. First-time project setup: Prompts → Copy project prompt; paste it into WebUI project instructions once.', 'empty'));
     byId('context-files').replaceChildren(); byId('context-freshness').textContent = 'Select a session to view its package.';
     for (const id of ['pending', 'items', 'checklist']) byId(id).replaceChildren();
     closeMenus(); byId('stop').hidden = true;
     byId('todo-toggle').textContent = 'TODO 0/0'; contextMeter();
-    byId('update-context').textContent = 'Update context'; byId('warning').textContent = '';
+    byId('update-context').textContent = 'Context files'; byId('warning').textContent = '';
+    byId('continue-chat').hidden = true; contextRefresh = {}; packageStale = false; packageDirectory = '';
+    packageStatus();
     byId('job').textContent = 'Local tools · no connected model';
     return;
   }
@@ -323,11 +340,13 @@ function render(message) {
   for (const item of items) byId('items').append(node('li', `${item.status === 'completed' ? '☑' : '☐'} ${item.text} · ${item.status} · ${item.reported_by || 'model'} / unverified`));
   contextMeter(status.metrics, true);
   const warnings = [];
-  if (status.session.archived) warnings.push('Archived: resume through ⚙ before continuing.');
+  if (status.session.archived) warnings.push('Archived: restore through Chat before continuing.');
   if (status.task?.checkpoint_required) warnings.push('Update TODO after the applied change or failed validation.');
   if (status.interrupted_requests?.length) warnings.push('Interrupted operations were not replayed. Inspect their saved results.');
   if (status.metrics.handoff_recommended) warnings.push('Context threshold reached; a fresh-chat handoff is recommended.');
   byId('warning').textContent = warnings.join(' ');
+  byId('continue-chat').hidden = !status.metrics.handoff_recommended || !status.session.task_id || status.session.archived;
+  byId('continue-chat').disabled = continuing.has(session);
   for (const entry of message.history || []) entries.set(entry.id, entry);
   const transcript = byId('transcript');
   const atEnd = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 70;
@@ -337,12 +356,14 @@ function render(message) {
   if (changed || atEnd) transcript.scrollTop = transcript.scrollHeight;
   const rows = status.checklist || [];
   const changedCount = rows.filter(r => r.action !== 'keep').length;
-  byId('update-context').textContent = `Update context${changedCount ? ' · ' + changedCount : ''}`;
-  describe(byId('update-context'), descriptions.prepare + ' ' + (status.package_stale ? 'Source package is stale.' : changedCount ? `${changedCount} artifacts differ from confirmed transfers.` : 'Context package matches confirmed transfers.'));
-  byId('freshness').textContent = status.directory ? `${status.package_stale ? 'Refreshing' : 'Current'} · ${status.directory}` : 'Refresh to prepare upload files.';
+  byId('update-context').textContent = `Context files${changedCount ? ' · ' + changedCount + ' changed' : ''}`;
+  describe(byId('update-context'), 'Open the automatically maintained upload checklist. ' + (status.package_stale ? 'Source package is stale.' : changedCount ? `${changedCount} artifacts differ from confirmed transfers.` : 'Context package matches confirmed transfers.'));
+  byId('full').checked = !!status.full_source;
+  packageStale = !!status.package_stale; packageDirectory = status.directory || '';
+  contextRefresh = message.contextRefresh || {}; packageStatus();
   byId('checklist').replaceChildren();
   byId('context-files').replaceChildren();
-  byId('context-freshness').textContent = status.directory ? `${status.package_stale ? 'STALE — refresh before uploading' : 'Current package'} · ${status.directory}` : 'Refresh to generate this session’s context files.';
+  byId('context-freshness').textContent = status.directory ? `${status.package_stale ? 'Waiting for automatic refresh' : 'Current package'} · ${status.directory}` : 'Context files are prepared automatically.';
   for (const row of rows) {
     byId('checklist').append(node('li', `${row.action.toUpperCase()} ${row.file}${row.required ? '' : ' (optional)'} · ${row.hash.slice(0, 10)}`));
     const entry = node('article', undefined, 'context-file');
@@ -353,7 +374,9 @@ function render(message) {
 
 const menuControls = {
   options: 'options-toggle', 'session-drawer': 'sessions-toggle',
-  'composer-options': 'composer-menu', 'todo-panel': 'todo-toggle', packages: 'update-context'
+  'composer-options': 'composer-menu', 'todo-panel': 'todo-toggle', packages: 'update-context',
+  'chat-menu': 'chat-toggle', 'prompts-menu': 'prompts-toggle', 'execution-menu': 'execution-toggle',
+  'project-menu': 'project-menu-toggle'
 };
 let menuTrigger;
 
@@ -377,13 +400,24 @@ function sizeSettings() {
   byId('options').style.maxHeight = `${Math.min(window.innerHeight * 0.6, available)}px`;
 }
 
+/** Keep upward menus within the remaining viewport as drafts grow or the panel resizes. */
+function sizeMenus() {
+  sizeSettings();
+  for (const id of ['chat-menu', 'prompts-menu', 'execution-menu', 'todo-panel', 'packages', 'composer-options']) {
+    const panel = byId(id);
+    if (panel.hidden) continue;
+    const anchor = panel.closest('.composer') || panel.closest('footer');
+    panel.style.maxHeight = `${Math.max(0, Math.min(window.innerHeight * 0.6, anchor.getBoundingClientRect().top - 12))}px`;
+  }
+}
+
 /** Open one anchored menu and update its accessible disclosure state. */
 function openMenu(id, control = menuControls[id]) {
   closeMenus();
   byId(id).hidden = false;
   menuTrigger = control;
   byId(control).setAttribute('aria-expanded', 'true');
-  sizeSettings();
+  sizeMenus();
 }
 
 /** Toggle one compact surface without covering its own initiating control. */
@@ -404,7 +438,7 @@ document.addEventListener('click', event => {
     (byId(id).contains(event.target) || byId(control).contains(event.target)));
   if (!within) closeMenus();
 });
-window.addEventListener('resize', sizeSettings);
+window.addEventListener('resize', sizeMenus);
 if (window.ResizeObserver) new ResizeObserver(sizeSettings).observe(byId('options-anchor'));
 
 /** Switch accessible tab groups without executing requests or copying content. */
@@ -456,6 +490,11 @@ byId('sessions-toggle').addEventListener('click', () => toggle('session-drawer',
 byId('options-toggle').addEventListener('click', () => toggle('options', 'options-toggle'));
 byId('todo-toggle').addEventListener('click', () => toggle('todo-panel', 'todo-toggle'));
 byId('composer-menu').addEventListener('click', () => toggle('composer-options', 'composer-menu'));
+for (const [panel, control] of Object.entries(menuControls)) {
+  if (['packages', 'chat-menu', 'prompts-menu', 'execution-menu', 'project-menu'].includes(panel)) {
+    byId(control).addEventListener('click', () => toggle(panel, control));
+  }
+}
 document.querySelectorAll('[data-action]').forEach(element => {
   if (descriptions[element.dataset.action]) describe(element, descriptions[element.dataset.action]);
   element.addEventListener('click', () => {
@@ -466,7 +505,12 @@ document.querySelectorAll('[data-action]').forEach(element => {
 });
 for (const [id, text] of Object.entries({
   'sessions-toggle': 'Search, select, archive, restore or delete chats.',
-  'options-toggle': 'Open grouped session, context, Copilot/MCP, project and maintenance settings.',
+  'options-toggle': 'Open project, Copilot/MCP and maintenance settings.',
+  'chat-toggle': 'Copy the starter, rename, archive, delete or continue this chat.',
+  'prompts-toggle': 'Copy or edit project and role prompts, including before creating a chat.',
+  'execution-toggle': 'Choose validation, manage command permission or save recovery progress.',
+  'project-menu-toggle': 'Rename or remove the selected project listing.',
+  'update-context': 'Open automatically refreshed context files and confirm completed external transfers.',
   'search': 'Search saved sessions by name, identifier or task objective.',
   'archived': 'Display archived sessions so you can restore or delete them.',
   'full': 'Include Markdown exports of all eligible source files.',
@@ -526,6 +570,11 @@ window.addEventListener('message', event => {
     byId('request').value = ''; resizeComposer(); saveDraft();
   }
   if (message.type === 'state') render(message);
+  if (message.type === 'contextRefresh' && message.session === session) { contextRefresh = message; packageStatus(); }
+  if (message.type === 'continuing') {
+    if (message.value) continuing.add(message.session); else continuing.delete(message.session);
+    if (message.session === session) byId('continue-chat').disabled = message.value;
+  }
   if (message.type === 'connection') {
     byId('job').textContent = 'Local harness ready';
     projectRoot(message.workspace);

@@ -10,7 +10,7 @@ class ProjectInstructions:
     """Load the standalone project prompt without repository, task or session data."""
 
     MAX_CHARACTERS = 8000
-    REVISION = 7
+    REVISION = 8
 
     def check_budget(self, text: str) -> None:
         """Reject oversized project instructions without discarding any operating rules."""

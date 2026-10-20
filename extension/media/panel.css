@@ -41,7 +41,7 @@ textarea { display: block; resize: none; width: 100%; height: 56px; min-height: 
 #send { margin-left: auto; }
 .message-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0; padding-top: 4px; font-size: .85em; }
 .message-bar select { border: 0; max-width: 110px; padding: 4px 0; color: var(--vscode-foreground); background: var(--vscode-sideBar-background); }
-#update-context { margin-left: auto; color: var(--vscode-textLink-foreground); }
+#update-context { flex: 1 1 110px; min-width: 0; text-align: right; margin-left: auto; color: var(--vscode-textLink-foreground); }
 #warning:empty { display: none; }
 #warning { padding-top: 3px; }
 .popover { z-index: 10; padding: 10px; position: absolute; left: 8px; right: 8px; bottom: calc(100% + 4px); max-height: 60vh; overflow: auto; border: 1px solid var(--vscode-widget-border); border-radius: 6px; box-shadow: 0 3px 12px var(--vscode-widget-shadow); background: var(--vscode-editorWidget-background); }
@@ -50,7 +50,7 @@ textarea { display: block; resize: none; width: 100%; height: 56px; min-height: 
 #options { position: absolute; top: calc(100% + 4px); right: 0; left: auto; bottom: auto; width: min(290px, calc(100vw - 16px)); }
 #options button, #options label, #composer-options button { display: block; width: 100%; padding: 6px; }
 #workspace-root { display: block; padding: 0 6px 6px; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
-#session-drawer { flex: none; max-height: 35vh; overflow: auto; padding: 8px; border-bottom: 1px solid var(--vscode-panel-border); }
+#session-drawer { display: flex; flex-direction: column; flex: none; max-height: 35vh; overflow: hidden; padding: 8px; border-bottom: 1px solid var(--vscode-panel-border); }
 .session-row { display: flex; gap: 2px; align-items: center; }
 #sessions button { flex: none; text-align: left; white-space: nowrap; }
 #sessions .session-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -74,12 +74,25 @@ body.vscode-high-contrast button.primary, body.vscode-high-contrast-light button
 #projects-page, #session-page { display: flex; flex: 1; flex-direction: column; min-height: 0; }
 .project-bar { display: flex; flex: none; gap: 4px; padding: 4px 8px; }
 #project-select { flex: 1; min-width: 0; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); padding: 4px; }
-#documentation-page, #context-page { overflow: auto; min-height: 0; padding: 8px 12px; flex: 1; }
+#context-page { overflow: auto; min-height: 0; padding: 8px 12px; flex: 1; }
 .help-topic, .context-file { border-bottom: 1px solid var(--vscode-panel-border); padding: 8px 0; overflow-wrap: anywhere; }
 .help-topic p { line-height: 1.5; }
 .help-topic pre { white-space: pre-wrap; background: var(--vscode-textCodeBlock-background); padding: 8px; }
 .help-topic img { max-width: 100%; height: auto; border: 1px solid var(--vscode-panel-border); }
-#help-search { position: sticky; top: 0; }
+#documentation-page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.search-header { flex: none; position: relative; z-index: 1; padding: 8px; background: var(--vscode-sideBar-background, var(--vscode-editor-background)); }
+#help-topics, #sessions { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#help-topics { flex: 1; padding: 0 12px 8px; }
+#sessions { flex: 1 1 auto; }
+#session-drawer .search-header { padding: 0 0 5px; }
+.bottom-menu button, #project-menu button, #packages details button { display: block; width: 100%; padding: 6px; }
+.continuation-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#continue-chat { color: var(--vscode-textLink-foreground); border-color: var(--vscode-panel-border); }
+.project-bar { position: relative; }
+#project-menu { bottom: auto; top: calc(100% + 4px); left: auto; right: 8px; width: min(240px, calc(100vw - 16px)); }
+#freshness { white-space: pre-wrap; overflow-wrap: anywhere; }
+.message-bar > button { min-height: 30px; }
+
 
 #context-meter { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; color: var(--repopilot-blue); }
 #context-meter svg { display: block; transform: rotate(-90deg); }

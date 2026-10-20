@@ -2,19 +2,19 @@
 
 A local VS Code panel for using a web-only model as a development assistant. Paste its complete reply, review requested actions, and copy the tool response back. RepoPilot tracks sessions and TODOs, prepares source context, and shows native diffs before applying a proposal. It makes **no model API calls**.
 
-Copilot uses four structured agents with native development tools plus focused RepoPilot MCP retrieval/checkpoints and repository setup/status. Use **⚙ → Copilot & MCP** to explicitly register the bundled server and preview/generate the workspace harness. The authoritative static bundle remains available for manual copying.
+Copilot uses four structured agents with native development tools plus focused RepoPilot MCP retrieval/checkpoints and repository setup/status. Use **Settings → Copilot & MCP** to explicitly register the bundled server and preview/generate the workspace harness. The authoritative static bundle remains available for manual copying.
 
 V3 is independent of RepoPilot and RepoPilotV2. There is no state migration or Textual TUI.
 
 ## Install
 
-In VS Code, choose **Extensions: Install from VSIX** and select **[repopilotv3-0.2.13.vsix](dist/repopilotv3-0.2.13.vsix)**. Open a trusted source folder and click the RepoPilot icon. That's the entire backend setup.
+In VS Code, choose **Extensions: Install from VSIX** and select **[repopilotv3-0.2.14.vsix](dist/repopilotv3-0.2.14.vsix)**. Open a trusted source folder and click the RepoPilot icon. That's the entire backend setup.
 
 The VSIX includes **Python 3.12, the backend, pinned dependencies, pytest, C# analysis bindings, documentation, and the static Copilot harness** for **Windows x64 and Linux/WSL x64**. It runs offline without installing Python or downloading dependencies. VS Code **1.85+** is required; Copilot agents/MCP/hooks have separate host requirements. macOS and ARM hosts are not bundled.
 
 SDKs, Framework reference assemblies and Autodesk interop DLLs remain optional host tools for C#/Inventor projects. Copilot harness files can be generated after a reviewed preview or copied manually through **Open Harness Folder**; the manual panel works immediately without them. See [setup and troubleshooting](docs/setup.md).
 
-The standalone [WebUI project prompt](src/repopilotv3/resources/webui.md) defines behavior and manual tools. Use **⚙ → WebUI context → Copy project prompt** and paste it once into your WebUI project's instructions. It has an enforced 8,000-character ceiling, and contains no session identity or repository source.
+The standalone [WebUI project prompt](src/repopilotv3/resources/webui.md) defines behavior and manual tools. Use **Prompts → Copy project prompt** and paste it once into your WebUI project's instructions. It has an enforced 8,000-character ceiling, and contains no session identity or repository source.
 
 The top-level **Projects / Documentation** tabs provide folder spaces and searchable illustrated help. Each project contains **Sessions / Context files**. Existing sessions stay in their original folder; removing a project listing never deletes its source or state.
 
@@ -22,11 +22,11 @@ The normal loop is **New session → copy starter → paste model reply → revi
 
 1. **New session** opens a chat immediately. Paste its short starter into a new chat within your configured WebUI project. It supplies this session's identity and asks for the objective; the model names the chat and creates its task/TODO using the separate project instructions.
 2. **Send** detects and executes pasted tool requests; ordinary prose becomes a message for the WebUI. **Paste + Run** imports from the clipboard. The composer menu offers **Copy message for WebUI** when you want to share JSON examples without execution.
-3. Use **Options → Prompts → Copy Planning/Asking/Implementation/Review prompt** for role guidance. **Edit prompts** opens a project-owned Markdown file; saved edits are authoritative. Resetting a prompt keeps a recovery copy. These are prompts, not session modes.
+3. Use **Prompts → Copy Planning/Asking/Implementation/Review prompt** for role guidance. **Edit prompts** opens a project-owned Markdown file; saved edits are authoritative. Resetting a prompt keeps a recovery copy. These are prompts, not session modes.
 4. Source proposals automatically open native diff tabs. **Approve whole proposal** applies the change and runs configured validation. Commands request local permission once per chat and offer **Stop** while running.
-5. **Update context**, beside the context meter, shows upload/replace/keep actions. **⚙ → Session → Generate handoff** continues the task in a confirmed fresh external chat.
+5. **Context files**, beside the context meter, opens the automatically maintained upload/replace/keep checklist. At the threshold, **Continue in new chat** opens a continuation after confirmation, with the saved handoff ready to copy.
 
-The cogwheel holds configuration, validation, command permission and session options. Hover the circular context indicator for percentage and token counts; click it to adjust the limit. Escape closes open menus and restores focus. Context tracking is an observed estimate with a configurable 40k advisory threshold, not a measurement of remote model capacity.
+The bottom bar groups Chat, Prompts, Execution and TODO controls. The cogwheel holds project, Copilot/MCP and maintenance settings. Use the project selector’s adjacent menu to rename or remove a project listing. Hover the circular context indicator for percentage and token counts; click it to adjust the limit. Escape closes open menus and restores focus. Context tracking is an observed estimate with a configurable 40k advisory threshold, not a measurement of remote model capacity.
 
 Drag the RepoPilot view container or use VS Code's **Move View / Move View Container** actions to put it in the Secondary Side Bar or Panel beside Chat/Codex. It is an independent view, not embedded in another extension.
 

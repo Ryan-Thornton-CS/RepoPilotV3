@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { ReviewDocuments } from '../src/diffs';
-import { dirtyAffectedEditors, SessionPanel } from '../src/extension';
+import { deactivate, dirtyAffectedEditors, SessionPanel } from '../src/extension';
 import { BackendClient } from '../src/backend';
 import { backendPython } from '../src/runtime';
 import { ProjectWorkspaces } from '../src/workspaces';
@@ -125,7 +125,12 @@ export async function run(): Promise<void> {
         await vscode.commands.executeCommand('repopilotv3.enableMcp');
         assert.ok(!fs.existsSync(path.join(root, '.vscode/mcp.json')));
       }
-      console.log(`RepoPilotV3 extension-host checks passed on VS Code ${vscode.version}`);
     } finally { registration.dispose(); }
-  } finally { client.dispose(); }
+  } finally {
+    await client.close();
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    await deactivate();
+  }
+  if (process.env.REPOPILOTV3_EDITOR_RESULT) fs.writeFileSync(process.env.REPOPILOTV3_EDITOR_RESULT, JSON.stringify({ passed: true, version: vscode.version }));
+  console.log(`RepoPilotV3 extension-host checks passed on VS Code ${vscode.version}`);
 }

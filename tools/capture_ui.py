@@ -78,13 +78,44 @@ class PanelCapture:
           d.dispatchEvent(new d.defaultView.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
           const dismissed=menu.hidden && d.activeElement===cog && cog.getAttribute('aria-expanded')==='false';
           const meter=d.getElementById('context-meter'), ring=d.getElementById('context-progress');
-          return {below, fits, dismissed, menu_top:menuRect.top, button_bottom:buttonRect.bottom,
+          const bottomMenus=['chat-toggle','prompts-toggle','execution-toggle','todo-toggle','update-context'].every(id=>{
+            const control=d.getElementById(id); control.click();
+            const panel=d.getElementById(control.getAttribute('aria-controls')), r=panel.getBoundingClientRect();
+            const visible=!panel.hidden && r.left>=0 && r.right<=d.defaultView.innerWidth && r.top>=0 && r.bottom<=control.getBoundingClientRect().top;
+            d.dispatchEvent(new d.defaultView.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+            return visible && panel.hidden && d.activeElement===control;
+          });
+          d.getElementById('documentation-tab').click();
+          const help=d.getElementById('help-topics'), header=d.getElementById('help-search').closest('.search-header');
+          const original=[...help.children];
+          for(let i=0;i<80;i++) { const p=d.createElement('p'); p.textContent='Synthetic scrolling help '+i; help.append(p); }
+          const initial=header.getBoundingClientRect().top; help.scrollTop=help.scrollHeight;
+          const point=header.getBoundingClientRect();
+          const fixedSearch=header.getBoundingClientRect().top===initial && help.scrollTop>0 &&
+            header.contains(d.elementFromPoint(point.left+20,point.top+12));
+          help.replaceChildren(...original); help.scrollTop=0; d.getElementById('projects-tab').click();
+          const input=d.getElementById('request'), draft=input.value;
+          input.value=Array(30).fill('Synthetic long draft for viewport checking').join('\\n');
+          input.dispatchEvent(new d.defaultView.Event('input',{bubbles:true}));
+          d.getElementById('prompts-toggle').click();
+          const growingRect=d.getElementById('prompts-menu').getBoundingClientRect();
+          const growingDraftMenu=growingRect.top>=0 && growingRect.bottom<=d.getElementById('prompts-toggle').getBoundingClientRect().top;
+          d.dispatchEvent(new d.defaultView.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+          input.value=draft; input.dispatchEvent(new d.defaultView.Event('input',{bubbles:true}));
+          const sessions=d.getElementById('sessions'), sessionRows=[...sessions.children];
+          for(let i=0;i<60;i++) { const p=d.createElement('p');p.textContent='Synthetic session '+i;sessions.append(p); }
+          d.getElementById('sessions-toggle').click(); sessions.scrollTop=sessions.scrollHeight;
+          const searchHeader=d.getElementById('search').closest('.search-header'), searchRect=searchHeader.getBoundingClientRect();
+          const fixedSessionSearch=sessions.scrollTop>0 && searchHeader.contains(d.elementFromPoint(searchRect.left+20,searchRect.top+10));
+          sessions.replaceChildren(...sessionRows);sessions.scrollTop=0;
+          d.dispatchEvent(new d.defaultView.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+          return {below, fits, dismissed, bottomMenus, fixedSearch, growingDraftMenu, fixedSessionSearch, menu_top:menuRect.top, button_bottom:buttonRect.bottom,
             circle:meter.querySelectorAll('svg').length===1,
             tooltip:meter.title, progress:Number(ring.getAttribute('stroke-dashoffset'))};
         })()"""
         result = await self.call(self.frame, "Runtime.evaluate", {"expression": script, "returnByValue": True})
         checks = result["result"]["value"]
-        if not checks["below"] or not checks["fits"] or not checks["dismissed"] or not checks["circle"] or not 0 <= checks["progress"] <= 100:
+        if not checks["below"] or not checks["fits"] or not checks["dismissed"] or not checks["circle"] or not checks["bottomMenus"] or not checks["fixedSearch"] or not checks["growingDraftMenu"] or not checks["fixedSessionSearch"] or not 0 <= checks["progress"] <= 100:
             raise RuntimeError("Panel geometry or interaction validation failed: " + json.dumps(checks))
         (root / ".tools/ui-capture/checks.json").write_text(json.dumps(checks, indent=2), "utf-8")
 
@@ -93,7 +124,7 @@ class PanelCapture:
         await self.validate_panel(root)
         await self.annotate(["#top-tabs", ".project-bar", "#project-tabs", "header", "#session-drawer"], True)
         await self.save(root / "docs/images/projects-guide.png")
-        await self.annotate(["#request", "#send", "#paste", "#todo-toggle", "#update-context", "#options-toggle"], False)
+        await self.annotate(["#request", "#send", "#paste", "#todo-toggle", "#update-context", ".message-bar"], False)
         await self.save(root / "docs/images/chat-guide.png")
         await self.call(self.frame, "Runtime.evaluate", {"expression": "document.querySelector('iframe').contentDocument.getElementById('options-toggle').click()"})
         await self.annotate(["#options-toggle", "#options"], False)

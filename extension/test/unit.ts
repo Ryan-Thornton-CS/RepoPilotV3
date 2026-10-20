@@ -394,7 +394,8 @@ test('consolidated footer, mode changes, pending approvals and safe model prose'
   assert.equal(sent.at(-1).text, 'review');
   document.getElementById('request').value = 'A user question';
   document.getElementById('send').click(); assert.equal(sent.at(-1).action, 'send');
-  document.getElementById('update-context').click(); assert.equal(sent.at(-1).action, 'prepare');
+  const beforeContext = sent.length; document.getElementById('update-context').click();
+  assert.equal(document.getElementById('packages').hidden, false); assert.equal(sent.length, beforeContext);
   const row = document.querySelector('#sessions .session-row');
   row.children[1].click(); assert.equal(sent.at(-1).action, 'archive'); assert.equal(sent.at(-1).sessionId, 'A');
   row.children[2].click(); assert.equal(sent.at(-1).action, 'delete'); assert.equal(sent.at(-1).sessionId, 'A');
@@ -573,7 +574,7 @@ test('menus anchor below the cogwheel and Escape closes every surface without ex
   assert.match(css, /#options \{ position: absolute; top: calc\(100% \+ 4px\)/);
   const cog = d.getElementById('options-toggle');
   cog.getBoundingClientRect = () => ({ bottom: 180 });
-  for (const [control, panel] of [['options-toggle', 'options'], ['sessions-toggle', 'session-drawer'], ['composer-menu', 'composer-options'], ['todo-toggle', 'todo-panel']]) {
+  for (const [control, panel] of [['options-toggle', 'options'], ['sessions-toggle', 'session-drawer'], ['composer-menu', 'composer-options'], ['todo-toggle', 'todo-panel'], ['chat-toggle', 'chat-menu'], ['prompts-toggle', 'prompts-menu'], ['execution-toggle', 'execution-menu'], ['project-menu-toggle', 'project-menu']]) {
     const opener = d.getElementById(control); opener.focus(); opener.click();
     assert.equal(d.getElementById(panel).hidden, false);
     assert.equal(opener.getAttribute('aria-expanded'), 'true');

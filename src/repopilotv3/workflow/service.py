@@ -166,6 +166,7 @@ class WorkflowService:
             "draft": self.history.preference("draft:" + session_id) or "",
             "metrics": self.sessions.metrics(session_id),
             "package_stale": stale,
+            "full_source": bool(self.history.preference("full_source:" + session_id)),
             "checklist": checklist,
             "directory": manifest["directory"] if manifest else None,
             "generation_id": manifest["id"] if manifest else None,

@@ -27,6 +27,8 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
   private refreshTimer?: ReturnType<typeof setInterval>;
   private refreshing = false;
   private jobs = 0;
+  private continuing = new Set<string>();
+  private packageStates = new Map<string, { state: string; error?: string }>();
   private epoch = 0;
   private archived = false;
   private query = '';
@@ -59,32 +61,32 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
       <link rel="stylesheet" href="${css}"><title>RepoPilotV3</title></head><body>
       <nav id="top-tabs" role="tablist" aria-label="RepoPilot pages"><button id="projects-tab" role="tab" aria-selected="true" aria-controls="projects-page">Projects</button><button id="documentation-tab" role="tab" aria-selected="false" aria-controls="documentation-page">Documentation</button></nav>
-      <section id="documentation-page" role="tabpanel" aria-labelledby="documentation-tab" hidden><input id="help-search" type="search" placeholder="Search documentation" aria-label="Search documentation"><div id="help-topics"></div></section>
+      <section id="documentation-page" role="tabpanel" aria-labelledby="documentation-tab" hidden><div class="search-header"><input id="help-search" type="search" placeholder="Search documentation" aria-label="Search documentation"></div><div id="help-topics"></div></section>
       <section id="projects-page" role="tabpanel" aria-labelledby="projects-tab">
-      <div class="project-bar"><select id="project-select" aria-label="Project space"><option value="">Select project</option></select><button data-action="projectAdd" title="Add a project folder">＋ Project</button></div>
+      <div class="project-bar"><select id="project-select" aria-label="Project space"><option value="">Select project</option></select><button data-action="projectAdd" title="Add a project folder">＋ Project</button><button id="project-menu-toggle" aria-label="Project actions" aria-expanded="false" aria-controls="project-menu">⋯</button><nav id="project-menu" class="popover" hidden aria-label="Project actions"><button data-action="projectRename">Rename project</button><button data-action="projectRemove">Remove project…</button></nav></div>
       <nav id="project-tabs" role="tablist" aria-label="Project pages"><button id="sessions-tab" role="tab" aria-selected="true" aria-controls="session-page">Sessions</button><button id="context-tab" role="tab" aria-selected="false" aria-controls="context-page">Context files</button></nav>
-      <section id="context-page" role="tabpanel" aria-labelledby="context-tab" hidden><h2>WebUI context files</h2><p id="context-freshness">Select a session to view its package.</p><div class="toolbar"><button data-action="prepare">Refresh</button><button data-action="package">Open folder</button><button data-action="confirm">Confirm transfers</button></div><div id="context-files"></div></section>
+      <section id="context-page" role="tabpanel" aria-labelledby="context-tab" hidden><h2>WebUI context files</h2><p id="context-freshness">Select a session to view its package.</p><div class="toolbar"><button data-action="prepare">Retry refresh</button><button data-action="package">Open folder</button><button data-action="confirm">Confirm transfers</button></div><div id="context-files"></div></section>
       <section id="session-page" role="tabpanel" aria-labelledby="sessions-tab">
       <header><button id="sessions-toggle" aria-label="Sessions" aria-expanded="false" aria-controls="session-drawer">☰</button><strong id="title">RepoPilotV3</strong><button data-action="new" title="New session" aria-label="New session">＋</button><div id="options-anchor"><button id="options-toggle" title="Options" aria-label="Options" aria-expanded="false" aria-controls="options">⚙</button>      <nav id="options" class="popover" hidden aria-label="Options">
-        <details open><summary>Session</summary><button data-action="starter">Copy session starter</button><button data-action="handoff">Generate handoff</button><button data-action="rename">Rename session</button><button data-action="archive">Archive / restore</button><button data-action="delete">Delete session…</button></details>
-        <details><summary>Prompts</summary><button data-action="roleCopy" data-role="planning">Copy Planning prompt</button><button data-action="roleCopy" data-role="asking">Copy Asking prompt</button><button data-action="roleCopy" data-role="implementation">Copy Implementation prompt</button><button data-action="roleCopy" data-role="review">Copy Review prompt</button><button data-action="roleEdit">Edit prompts</button><button data-action="roleReset">Reset prompt to default…</button></details>
-        <details><summary>WebUI context</summary><button data-action="projectPrompt">Copy project prompt</button><button data-action="prepare">Update context package</button><button data-action="confirm">Confirm transfers</button><button data-action="project">External project scope</button><button data-action="limit">Context threshold</button><label><input id="full" type="checkbox"> Full eligible-source package</label></details>
         <details><summary>Copilot &amp; MCP</summary><button data-action="mcpEnable">Enable MCP for selected project</button><button data-action="mcpStatus">MCP status</button><button data-action="mcpConfig">Open MCP configuration</button><button data-action="mcpDisable">Disable a project MCP</button><button data-action="generateHarness">Generate / update workspace harness</button><button data-action="harnessWorkspace">Open workspace .github</button><button data-action="harness">Open bundled harness</button><button data-action="harnessRecover">Recover harness update</button></details>
-        <details><summary>Project &amp; execution</summary><button data-action="projectAdd">Add project folder</button><button data-action="projectRename">Rename project space</button><button data-action="projectRemove">Remove project space…</button><small id="workspace-root">No project selected</small><button data-action="setup">Validation profile</button><button data-action="permission">Command permission</button><button data-action="todo">Local recovery checkpoint</button><button data-action="todoReset">Reset checklist…</button></details>
+        <details><summary>Projects</summary><button data-action="projectAdd">Add project folder</button><button data-action="projectRename">Rename project space</button><button data-action="projectRemove">Remove project space…</button><small id="workspace-root">No project selected</small></details>
         <details><summary>Maintenance</summary><button data-action="retention">Export retention settings</button><button data-action="diagnostics">Diagnostics</button><button data-action="restart">Reconnect backend</button><button data-action="settings">Extension settings</button></details>
       </nav></div></header>
-      <aside id="session-drawer" hidden><input id="search" type="search" placeholder="Search sessions" aria-label="Search sessions"><label><input id="archived" type="checkbox"> Show archived</label><div id="sessions"></div></aside>
+      <aside id="session-drawer" hidden><div class="search-header"><input id="search" type="search" placeholder="Search sessions" aria-label="Search sessions"><label><input id="archived" type="checkbox"> Show archived</label></div><div id="sessions"></div></aside>
 
-      <main id="transcript" aria-label="Persistent chat transcript"><button id="older">Load earlier</button><div id="entries"><p class="empty">Configure your WebUI project once with ⚙ → Copy project prompt. Start a session and paste its short starter into a new chat.</p></div><div id="pending"></div></main>
+      <main id="transcript" aria-label="Persistent chat transcript"><button id="older">Load earlier</button><div id="entries"><p class="empty">Configure your WebUI project once with Prompts → Copy project prompt. Start a session and paste its short starter into a new chat.</p></div><div id="pending"></div></main>
       <footer><div id="job" role="status" aria-live="polite">Local tools · no connected model</div><section class="composer">
         <textarea id="request" rows="3" placeholder="Paste model tool requests or write a message…" aria-label="Message or model reply"></textarea>
         <div class="composer-actions"><button id="paste" data-action="pasteRun">Paste + Run</button><button id="composer-menu" title="Composer actions" aria-label="Composer actions" aria-expanded="false" aria-controls="composer-options">⋯</button><button id="stop" data-action="stop" hidden>Stop</button><button id="send" data-action="send" class="primary">Send ↗</button></div>
         <div id="composer-options" class="popover" hidden><button id="run" data-action="run">Run as model reply</button><button data-action="forward">Copy message for WebUI</button><button data-action="note">Save local note</button></div>
       </section><div class="message-bar">
-        <button id="todo-toggle" aria-expanded="false" aria-controls="todo-panel">TODO 0/0</button><button id="context-meter" data-action="limit" aria-label="Context window: estimated usage" title="Estimated recorded context"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle class="context-track" cx="12" cy="12" r="9"/><circle id="context-progress" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><span id="context-description" class="sr-only">Context window: 0% full</span></button><button id="update-context" data-action="prepare" aria-controls="packages" aria-expanded="false">Update context</button>
-      </div><section id="todo-panel" class="popover" hidden><strong id="task">Waiting for model task/TODO</strong><ul id="items"></ul></section>
-      <section id="packages" class="popover" hidden><strong>WebUI context</strong><p id="freshness"></p><div class="toolbar"><button data-action="package">Open folder</button><button data-action="instructions">Copy instructions</button><button data-action="confirm">Confirm transfers</button></div><ul id="checklist"></ul><p>Only confirm files you actually pasted/uploaded. Local generation does not update the WebUI.</p></section>
-      <div id="warning" role="status"></div></footer></section></section><script nonce="${nonce}" src="${js}"></script></body></html>`;
+        <button id="chat-toggle" aria-expanded="false" aria-controls="chat-menu">Chat</button><button id="prompts-toggle" aria-expanded="false" aria-controls="prompts-menu">Prompts</button><button id="execution-toggle" aria-expanded="false" aria-controls="execution-menu">Execution</button><button id="todo-toggle" aria-expanded="false" aria-controls="todo-panel">TODO 0/0</button><button id="context-meter" data-action="limit" aria-label="Context window: estimated usage" title="Estimated recorded context"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle class="context-track" cx="12" cy="12" r="9"/><circle id="context-progress" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><span id="context-description" class="sr-only">Context window: 0% full</span></button><button id="update-context" aria-controls="packages" aria-expanded="false">Context files</button>
+      </div><section id="todo-panel" class="popover" hidden><div class="toolbar"><button data-action="todoReset">Reset checklist…</button></div><strong id="task">Waiting for model task/TODO</strong><ul id="items"></ul></section>
+      <section id="packages" class="popover" hidden><strong>WebUI context</strong><p id="freshness" role="status"></p><div class="toolbar"><button data-action="package">Open folder</button><button data-action="instructions">Copy instructions</button><button data-action="prepare" id="retry-context" hidden>Retry refresh</button><button data-action="confirm">Confirm transfers</button></div><details><summary>Package settings</summary><button data-action="project">External project scope</button><label><input id="full" type="checkbox"> Full eligible-source package</label></details><ul id="checklist"></ul><p>Only confirm files you actually pasted/uploaded. Local generation does not update the WebUI.</p></section>
+      <nav id="chat-menu" class="popover bottom-menu" hidden aria-label="Chat actions"><button data-action="starter">Copy session starter</button><button data-action="handoff">Generate handoff</button><button data-action="rename">Rename session</button><button data-action="archive">Archive / restore</button><button data-action="delete">Delete session…</button></nav>
+      <nav id="prompts-menu" class="popover bottom-menu" hidden aria-label="Prompts"><button data-action="projectPrompt">Copy project prompt</button><button data-action="roleCopy" data-role="planning">Copy Planning prompt</button><button data-action="roleCopy" data-role="asking">Copy Asking prompt</button><button data-action="roleCopy" data-role="implementation">Copy Implementation prompt</button><button data-action="roleCopy" data-role="review">Copy Review prompt</button><button data-action="roleEdit">Edit prompts</button><button data-action="roleReset">Reset prompt to default…</button></nav>
+      <nav id="execution-menu" class="popover bottom-menu" hidden aria-label="Execution"><button data-action="setup">Validation profile</button><button data-action="permission">Command permission</button><button data-action="todo">Recovery checkpoint</button></nav>
+      <div class="continuation-bar"><div id="warning" role="status"></div><button id="continue-chat" data-action="handoff" hidden>Continue in new chat</button></div></footer></section></section><script nonce="${nonce}" src="${js}"></script></body></html>`;
   }
 
   private post(value: unknown): void { void this.view?.webview.postMessage(value); }
@@ -184,26 +186,39 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     }
     if (session !== this.selected || epoch !== this.epoch) { return; }
     for (const entry of history) { this.entries.set(entry.id, entry); }
-    this.post({ type: 'state', sessions, selected: session, status, history, earlier: !!before });
+    this.post({ type: 'state', sessions, selected: session, status, history, earlier: !!before, contextRefresh: this.packageStates.get(session) });
   }
 
   private async background(): Promise<void> {
     if (!this.view?.visible || !this.selected || this.refreshing || this.jobs || this.switching) { return; }
     this.refreshing = true;
+    const session = this.selected;
     try {
-      const client = await this.backend(); const session = this.selected;
+      const client = await this.backend();
       const status = await client.request('sessions.status', { session_id: session });
-      if (status.session.archived || !status.session.task_id) { return; }
+      if (status.session.archived) { return; }
       if (this.switching || this.client !== client) { return; }
+      this.packageState(session, 'refreshing');
       const result = await client.request('exports.prepare', { session_id: session, background: true });
-      if (result.deferred) { return; }
+      if (result.deferred) { this.packageState(session, 'queued'); return; }
+      this.packageState(session, 'current');
       if (!this.switching && this.client === client && session === this.selected) { await this.refresh(); }
     } catch (error) {
       if (!this.switching && /session_deleted:|not_found: Unknown session/.test(String(error))) {
         await this.refresh().catch(failure => this.output.appendLine(String(failure)));
-      } else { this.output.appendLine(String(error)); }
+      } else {
+        if (!this.switching && session === this.selected) this.packageState(session, 'failed', String(error));
+      }
     }
     finally { this.refreshing = false; }
+  }
+
+  /** Publish lightweight refresh status without changing history, clipboard or transfer receipts. */
+  private packageState(session: string, state: string, error?: string): void {
+    const previous = this.packageStates.get(session);
+    this.packageStates.set(session, { state, ...(error ? { error } : {}) });
+    if (error && previous?.error !== error) this.output.appendLine(error);
+    if (session === this.selected) this.post({ type: 'contextRefresh', session, state, error });
   }
 
   private async copy(client: BackendClient, session: string | undefined, text: string,
@@ -353,6 +368,8 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       for (const command of status.running_commands) { await client.request('commands.cancel', { session_id: this.selected, command_id: command.command_id }); }
       return;
     }
+    if (message.action === 'handoff' && this.selected && this.continuing.has(this.selected)) return;
+    if (message.action === 'handoff' && this.jobs) throw new Error('Finish or stop current work before creating a continuation.');
     const epoch = ++this.epoch;
     this.jobs++;
     try {
@@ -390,7 +407,11 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
         case 'starter': await this.completed(client, session, await client.request('prompts.starter', { session_id: session }), epoch); break;
         case 'note': await client.request('notes.add', { session_id: session, text: message.text }); await this.refresh(); break;
         case 'prepare': {
-          await client.request('exports.prepare', { session_id: session, ...(message.value === undefined ? {} : { full_source: message.value }) });
+          this.packageState(session, 'refreshing');
+          try {
+            await client.request('exports.prepare', { session_id: session, ...(message.value === undefined ? {} : { full_source: message.value }) });
+            this.packageState(session, 'current');
+          } catch (error) { this.packageState(session, 'failed', String(error)); throw error; }
           await this.refresh(); this.post({ type: 'packages' }); break;
         }
         case 'package': {
@@ -415,12 +436,18 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
           break;
         }
         case 'handoff': {
-          await client.request('handoff', { session_id: session });
-          const yes = await vscode.window.showInformationMessage('Open a new external WebUI chat, then confirm to create its local continuation.', 'New external chat is open');
-          if (!yes) { return; }
-          const result = await client.request('handoff', { session_id: session, confirmed_new_chat: true });
-          this.selected = result.session_id; this.entries.clear();
-          await this.completed(client, result.session_id, result, epoch); break;
+          if (this.continuing.has(session)) return;
+          this.continuing.add(session);
+          this.post({ type: 'continuing', session, value: true });
+          try {
+            await client.request('handoff', { session_id: session });
+            const yes = await vscode.window.showInformationMessage('Open a new external WebUI chat, then confirm to create its local continuation.', 'New external chat is open');
+            if (!yes || this.selected !== session) return;
+            const result = await client.request('handoff', { session_id: session, confirmed_new_chat: true });
+            this.selected = result.session_id; this.entries.clear();
+            await this.completed(client, result.session_id, result, this.epoch);
+          } finally { this.continuing.delete(session); this.post({ type: 'continuing', session, value: false }); }
+          break;
         }
         case 'review': await this.review(client, session, message.patchId!); break;
         case 'commandDiff': await this.commandDiffs(client, session, message.commandId!); break;
@@ -586,7 +613,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
         const written = await targetClient.request('harness.apply', { plan_id: result.plan_id });
         void vscode.window.showInformationMessage(`Harness ready: ${written.directory}. ${written.changed_files.length} file(s) changed.`);
       } finally { if (targetClient !== client) { await targetClient.close(); } }
-    } finally { this.jobs--; }
+    } finally { this.jobs--; void this.background(); }
   }
 
   /** Publish project metadata independently of session creation and repository indexing. */
@@ -622,14 +649,21 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       if (name) { await this.projects.rename(project.id, name); if (this.folder?.uri.toString() === project.uri) { this.folder.name = name; } }
     } else if (message.action === 'projectRemove') {
       if (await vscode.window.showWarningMessage(`Remove “${project.name}” from RepoPilot?`, { modal: true, detail: 'The folder, private state, sessions and MCP registration are kept.' }, 'Remove project') !== 'Remove project') { return; }
-      await this.projects.remove(project.id);
-      if (project.uri === this.folder?.uri.toString()) {
-        this.epoch++; await this.client?.close(); this.client = undefined; this.folder = undefined; this.selected = undefined;
-        this.entries.clear(); this.opened.clear();
-        if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = undefined; }
-        await this.context.workspaceState.update('workspace', undefined);
-        this.post({ type: 'workspaceChanged', workspace: '' });
-      }
+      if (this.jobs || this.switching) throw new Error('Finish or stop current work before removing a project.');
+      this.switching = true;
+      try {
+        if (project.uri === this.folder?.uri.toString()) {
+          this.epoch++;
+          await this.client?.close();
+          // Retain the listing if shutdown fails; never reimport a removed space on restore.
+          await this.context.workspaceState.update('workspace', undefined);
+          this.client = undefined; this.folder = undefined; this.selected = undefined;
+          this.entries.clear(); this.opened.clear(); this.packageStates.clear();
+          if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = undefined; }
+          this.post({ type: 'workspaceChanged', workspace: '' });
+        }
+        await this.projects.remove(project.id);
+      } finally { this.switching = false; }
     }
     await this.projectState();
   }
@@ -660,7 +694,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       await this.client?.close();
       if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = undefined; }
       this.client = undefined; this.folder = folder; this.selected = undefined;
-      this.entries.clear(); this.opened.clear();
+      this.entries.clear(); this.opened.clear(); this.packageStates.clear();
       await this.context.workspaceState.update('workspace', folder.uri.toString());
       this.post({ type: 'workspaceChanged', workspace: folder.uri.fsPath });
       await this.restore();
@@ -689,7 +723,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       if (vscode.workspace.textDocuments.some(d => d.uri.fsPath === prompt.path && d.isDirty)) { throw new Error('Save your prompt edits before copying.'); }
       if (!prompt.text.trim()) { throw new Error('This prompt is empty. Edit it or reset it to the shipped default.'); }
       await this.copy(client, this.selected, prompt.text, `${prompt.title} prompt copied. No session mode or permissions changed.`);
-    } finally { this.jobs--; }
+    } finally { this.jobs--; void this.background(); }
   }
 
   /** Reconnect and read passive history without replaying accepted requests. */
@@ -704,6 +738,15 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ content: JSON.stringify(data, null, 2), language: 'json' }));
   }
 
+  /** Drain accepted backend work and timers before editor-host shutdown. */
+  public async close(): Promise<void> {
+    this.switching = true;
+    if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = undefined; }
+    if (this.initializing) await this.initializing;
+    await this.client?.close();
+    this.client = undefined;
+  }
+
   /** Release presentation resources and disconnect the backend supervisor pipes. */
   public dispose(): void {
     if (this.refreshTimer) { clearInterval(this.refreshTimer); }
@@ -711,9 +754,18 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
   }
 }
 
+let activePanel: SessionPanel | undefined;
+
+/** Await backend exit when VS Code deactivates this extension. */
+export async function deactivate(): Promise<void> {
+  await activePanel?.close();
+  activePanel = undefined;
+}
+
 /** Register only stable extension APIs available in VS Code 1.85 and later. */
 export function activate(context: vscode.ExtensionContext): void {
   const documents = new ReviewDocuments(); const panel = new SessionPanel(context, documents);
+  activePanel = panel;
   panel.registerMcp();
   context.subscriptions.push(panel, vscode.workspace.registerTextDocumentContentProvider('repopilotv3-review', documents),
     vscode.window.registerWebviewViewProvider('repopilotv3.sessions', panel),

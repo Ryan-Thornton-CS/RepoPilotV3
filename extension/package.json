@@ -2,7 +2,7 @@
   "name": "repopilotv3",
   "displayName": "RepoPilotV3",
   "description": "Local manual WebUI sessions, reviewed patches and repository context; no model connection.",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "publisher": "repopilot-local",
   "license": "MIT",
   "engines": {
@@ -124,7 +124,7 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "test": "npm run compile && node --test out/test/unit.js out/test/setup.js",
+    "test": "npm run compile && node --test out/test/unit.js out/test/setup.js out/test/automation.js",
     "test:editor": "node out/test/run.js",
     "package": "uv run --frozen --project .. --group dev python ../tools/build.py"
   },

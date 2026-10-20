@@ -262,3 +262,39 @@ def test_cli_redirected_output_uses_utf8_for_unicode_paths(ws, monkeypatch):
     assert main(["--repo", str(ws.root), "setup"]) == 0
     output.flush()
     assert "Ω" in buffer.getvalue().decode("utf-8")
+
+
+def test_automatic_packages_preserve_strategy_and_continuation_first_message(ws, session):
+    """Background-ready packages reuse artifacts and continue tasks without reusing permissions."""
+    task_id = start(ws, session)
+    service = WorkflowService(ws)
+    service.configure(session, commands_allowed=True, context_limit=1000)
+    service.history.preference("draft:" + session, "Keep original draft")
+    metrics = service.status(session)["metrics"]
+    first = service.prepare(session, full_source=True)
+    assert service.status(session)["full_source"] is True
+    again = service.prepare(session)
+    assert again["unchanged"] and again["manifest"]["id"] == first["manifest"]["id"]
+    assert service.status(session)["metrics"] == metrics
+    continued = service.handoff(session, True)
+    new_id = continued["session_id"]
+    status = service.status(new_id)
+    assert status["task"]["id"] == task_id
+    assert not status["session"]["todo_ready"] and not status["session"]["commands_allowed"]
+    assert status["session"]["context_limit"] == 1000
+    harness = [entry for entry in service.history.page(new_id) if entry["kind"] == "harness"]
+    assert harness[0]["body"]["action"] == "starter"
+    assert harness[0]["body"]["copy_text"] == continued["copy_text"]
+    assert service.history.preference("draft:" + session) == "Keep original draft"
+
+
+def test_blank_chat_context_prepares_without_inventing_a_task(ws):
+    """A fresh chat can publish orientation automatically without TODO or transfer side effects."""
+    service = WorkflowService(ws)
+    session_id = service.create()["session"]["id"]
+    before = service.status(session_id)["metrics"]
+    package = service.prepare(session_id)
+    assert (Path(package["directory"]) / "01_REPOSITORY_MAP.md").is_file()
+    assert service.status(session_id)["task"] is None
+    assert service.status(session_id)["metrics"] == before
+    assert not service.sessions.get(session_id)["todo_ready"]

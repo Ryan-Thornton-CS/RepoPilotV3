@@ -56,8 +56,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        editor: ['1.85.2', stable]
+        include:
+          - os: ubuntu-22.04
+            editor: '1.85.2'
+          - os: ubuntu-latest
+            editor: stable
+          - os: windows-latest
+            editor: '1.85.2'
+          - os: windows-latest
+            editor: stable
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -92,3 +99,13 @@ jobs:
         working-directory: extension
         env:
           VSCODE_TEST_VERSION: ${{ matrix.editor }}
+      - name: Preserve editor failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-logs-${{ matrix.os }}-${{ matrix.editor }}
+          include-hidden-files: true
+          if-no-files-found: ignore
+          path: |
+            extension/.vscode-test/repopilot-logs/**
+            extension/.vscode-test/editor-result.json

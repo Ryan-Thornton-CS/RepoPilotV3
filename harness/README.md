@@ -4,7 +4,7 @@
 
 ## Recommended extension setup
 
-1. Choose **⚙ → Project & execution → Select workspace** and select the individual project.
+1. Choose **Projects → Add project folder** and select the individual project.
 2. Choose **Copilot & MCP → Enable MCP for selected project**. The bundled interpreter is used; no PATH edits or separate Python install are needed. VS Code retains its trust/start/tool-picker controls.
 3. Existing RepoPilot entries are detected in the project and enclosing workspace. Keep them or explicitly switch after reviewing the exact MCP configuration diffs. Unrelated JSONC comments/entries are preserved.
 4. Choose **Generate / update workspace harness**. Default to the selected project; an enclosing workspace root is offered when applicable. Inspect the proposed agent/instruction/hook diffs and apply them locally.

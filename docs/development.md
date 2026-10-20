@@ -14,7 +14,7 @@ npm ci --prefix extension --ignore-scripts
 uv run --frozen --group dev python tools/build.py
 ```
 
-This builds the pure-Python backend internally, stages CPython and hash-pinned dependencies for Windows x64 and Linux x64, compiles the extension, and writes `dist/repopilotv3-0.2.13.vsix`. `npm run package --prefix extension` invokes the same build. There is no publication or workspace harness installation.
+This builds the pure-Python backend internally, stages CPython and hash-pinned dependencies for Windows x64 and Linux x64, compiles the extension, and writes `dist/repopilotv3-0.2.14.vsix`. `npm run package --prefix extension` invokes the same build. There is no publication or workspace harness installation.
 
 `uv.lock` and `extension/package-lock.json` pin Python/Node dependencies. `tools/runtime-lock.json` pins Python build URLs, hashes and the uv metadata release. uv verifies standalone runtime downloads against its pinned metadata. pip installs only hash-verified binary wheels; target-specific markers are evaluated explicitly before cross-platform installation. Build caches live under `.tools/bundle/`; staging lives under ignored `extension/backend`, `extension/docs`, and `extension/harness`.
 
@@ -40,7 +40,7 @@ VSCODE_TEST_VERSION=1.85.2 npm run test:editor --prefix extension
 VSCODE_TEST_VERSION=stable npm run test:editor --prefix extension
 ```
 
-Linux CI uses `xvfb-run -a`; Windows uses the same script without Xvfb. These explicit tests may download editor test builds. The runner removes inherited Electron/VS Code flags. The test opens native read-only diffs, checks dirty editor guards, clipboard access, extension discovery and real backend round trips. CI also runs Python tests on both operating systems. A Linux/WSL pass does not establish native Windows GUI or real Inventor compatibility.
+Linux CI uses `xvfb-run -a`; Windows uses the same script without Xvfb. Legacy VS Code 1.85.2 runs on Ubuntu 22.04, while current stable runs on ubuntu-latest. Both editors also run on Windows. The extension deactivation/test teardown awaits backend exit and closes test editors. CI retains editor logs on failure; crashes remain failures. These explicit tests may download editor test builds. The runner removes inherited Electron/VS Code flags and launches the editor directly with an argument array, preserving spaces, Unicode and UNC paths without a command shell. Successful checks require both recorded assertion/teardown evidence and a clean editor exit. The test opens native read-only diffs, checks dirty editor guards, clipboard access, extension discovery and real backend round trips. CI also runs Python tests on both operating systems. A Linux/WSL pass does not establish native Windows GUI or real Inventor compatibility.
 
 Optional SDK fixture checks use `tools/provision_fixtures.py --dotnet <executable>` for deliberate restore, followed by `REPOPILOTV3_TEST_DOTNET=<executable> pytest -q`. Native .NET Framework fixtures run only on Windows. See [C#/Inventor](csharp-inventor.md); real application loading remains a documented manual check.
 
