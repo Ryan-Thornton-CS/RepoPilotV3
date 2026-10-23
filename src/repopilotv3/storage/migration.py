@@ -99,7 +99,7 @@ class StateMigration:
                     (self.ws.state / group).mkdir(exist_ok=True)
                 for source in self.ws.state.glob("*.sqlite3"):
                     destination = self.ws.state / "databases" / source.name
-                    with sqlite3.connect(source) as original, sqlite3.connect(destination) as target:
+                    with contextlib.closing(sqlite3.connect(source)) as original, contextlib.closing(sqlite3.connect(destination)) as target:
                         original.backup(target)
                         if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                             raise PilotError("Database verification failed: " + source.name, "migration_failed")

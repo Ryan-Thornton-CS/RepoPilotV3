@@ -76,6 +76,26 @@ def test_busy_state_is_not_migrated(ws):
     assert legacy.paths.legacy
 
 
+def test_migration_closes_sqlite_handles_before_removing_old_paths(ws, monkeypatch):
+    """SQLite context managers commit but do not close; Windows needs explicit closure."""
+    legacy, _ = legacy_workspace(ws)
+    connect = sqlite3.connect
+    connections = []
+
+    def track(*args, **kwargs):
+        """Keep strong references so garbage collection cannot disguise leaked handles."""
+        connection = connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", track)
+    StateMigration(legacy).migrate(True)
+    assert connections
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
+
+
 def test_failed_migration_rolls_back_configuration_and_keeps_originals(ws, monkeypatch):
     """A failed verified copy leaves the legacy session fully readable."""
     legacy, session = legacy_workspace(ws)
