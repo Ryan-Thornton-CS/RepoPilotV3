@@ -139,3 +139,12 @@ HarnessManager renders the authoritative packaged static assets, including proje
 The extension’s workspace registry maps stable IDs to canonical folder URIs and display names. Switching closes the idle project-bound backend and restores the next root’s independently stored sessions/drafts; it never retargets MCP registrations or replays prior requests. The selected legacy folder migrates as a registry entry without moving private state. Native execution remains serialized and source-root ownership checks remain authoritative.
 
 Composer submission classifies input on the Python side, reusing complete-reply validation/execution for requests and explicit prompt composition for prose. RolePrompts reads editable UTF-8 files from private state, uses versioned resources only for initial creation/explicit reset, and preserves reset recovery copies. Manual role prompts do not alter permissions; static Copilot role agents remain separate. Checklist reset retains history/evidence and invalidates shared-task readiness under explicit session leases.
+
+
+## Versioned state layout and browser relay
+
+`StatePaths` selects legacy root files or organized `databases/`, `locks/` and `runtime/` locations from the local configuration version. `StateMigration` performs an explicit offline, journaled upgrade using SQLite backup/integrity checks. Local configuration version 2.0 is independent of manual/MCP/management protocol versions. History, receipts and task identities are preserved; old backend instances must not run against upgraded state.
+
+The extension’s `NativeBrowser` adapter invokes fixed native tools via `lm.invokeTool`; it never asks a model to generate browser code. `BrowserRelay` owns the explicitly armed transfer state machine. User-picked selectors and transfer journals are private management data, outside the manual/MCP tool registries. Browser permissions remain editor-owned. Reply capture requires explicit completion signals and all imported tool requests pass through the existing parser and approval pipeline.
+
+A `DemoServer` serves only three bundled assets on an ephemeral IPv4 loopback port. Browser-side replies are scripted and stored only in memory. Backend EOF stops and joins the server. Test code uses synthetic repositories and does not inspect private providers.

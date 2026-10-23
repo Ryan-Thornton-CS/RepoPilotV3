@@ -187,7 +187,7 @@ def map_root(root: Path, mappings: list[dict]) -> str:
 
 
 DEFAULTS = {
-    "schema_version": "1.0",
+    "schema_version": "2.0",
     "dotnet": None,
     "worker_command": [],
     "path_mappings": [],
@@ -213,7 +213,7 @@ def validate_settings(config: dict) -> None:
         "type": "object",
         "required": list(DEFAULTS),
         "properties": {
-            "schema_version": {"const": "1.0"},
+            "schema_version": {"enum": ["1.0", "2.0"]},
             "dotnet": {"type": ["string", "null"]},
             "worker_command": {"type": "array", "items": {"type": "string"}},
             "profiles": {
@@ -284,13 +284,22 @@ class Workspace:
         self.root = Path(root).expanduser().resolve()
         self.state = Path(state).expanduser().resolve() if state else self.root / ".repopilotv3"
         self.config_path = self.state / "config.json"
-        self.db_path = self.state / "index.sqlite3"
+        from repopilotv3.storage.paths import StatePaths
+        self.paths = StatePaths(self.state)
+
+    @property
+    def db_path(self) -> Path:
+        """Resolve the live index from the published private-state layout."""
+        return self.paths.database("index.sqlite3")
 
     @property
     def config(self) -> dict:
         """Load initialized configuration and enforce repository and host ownership."""
         if not self.config_path.exists():
             raise PilotError("Workspace is not initialized. Run repopilotv3 setup first.", "not_initialized")
+        migration = load_json(self.state / "recovery/layout/current.json", {})
+        if migration.get("status") in {"copying", "committing"}:
+            raise PilotError("State organization was interrupted. Stop backends and run state organize --confirm-stopped to recover.", "migration_required")
         config = load_json(self.config_path)
         if not isinstance(config, dict):
             raise PilotError("Configuration must be an object", "invalid_configuration")
@@ -324,6 +333,7 @@ class Workspace:
             created_at=now(),
         )
         atomic_json(self.config_path, config)
+        self.paths.ensure()
         self._exclude_state()
         with self.db() as db:
             db.executescript(SCHEMA)
@@ -369,7 +379,8 @@ class Workspace:
         self.config
         deadline = time.monotonic() + timeout
         name = "writer.lock" if scope is None else "operation-" + digest(scope) + ".lock"
-        with (self.state / name).open("a+b") as f:
+        self.paths.ensure()
+        with self.paths.lock(name).open("a+b") as f:
             if os.name == "nt":
                 import msvcrt
 

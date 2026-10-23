@@ -18,6 +18,22 @@ from repopilotv3.workflow.service import WorkflowService
 STRING = {"type": "string", "minLength": 1, "maxLength": 2500000}
 SESSION = {"session_id": STRING}
 METHODS = {
+    "state.status": ({}, []),
+    "browser.pending": (SESSION, ["session_id"]),
+    "browser.notice": ({**SESSION, "text": STRING}, ["session_id", "text"]),
+    "browser.demo.start": ({}, []),
+    "browser.demo.stop": ({}, []),
+    "browser.demo.status": ({}, []),
+    "browser.settings": ({**SESSION, "settings": {"type": "object", "additionalProperties": False,
+        "properties": {"url": {"type": "string", "maxLength": 4000}, "enabled": {"type": "boolean"},
+                       "mode": {"enum": ["fill", "capture", "loop"]},
+                       "budget": {"type": "integer", "minimum": 1, "maximum": 100},
+                       "selectors": {"type": "object", "additionalProperties": False,
+                           "properties": {key: {"type": "string", "maxLength": 2000}
+                                          for key in ("input", "send", "reply", "sent", "busy", "complete")}}}}}, []),
+    "browser.transfer": ({**SESSION, "transfer_id": STRING,
+                         "phase": {"enum": ["inspect", "fill_pending", "filled", "send_pending", "sent", "captured", "imported", "paused"]},
+                         "text": STRING}, ["session_id", "transfer_id", "phase"]),
     "harness.preview": ({"repository_root": STRING, "repository_state": STRING, "server_name": STRING}, []),
     "harness.apply": ({"plan_id": STRING}, ["plan_id"]),
     "harness.status": ({}, []),
@@ -108,7 +124,11 @@ class BridgeServer:
         self.ws = ws
         self.output = output or sys.stdout
         self.output_lock = threading.Lock()
-        self.service = WorkflowService(ws, self.command_progress, defer_exports=True) if ws.config_path.exists() else None
+        from repopilotv3.browser.demo import DemoServer
+        from repopilotv3.storage.migration import StateMigration
+
+        self.demo = DemoServer()
+        self.service = WorkflowService(ws, self.command_progress, defer_exports=True) if ws.config_path.exists() and not StateMigration(ws).status()["recovery_required"] else None
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="repopilot-work")
         self.admin = ThreadPoolExecutor(max_workers=1, thread_name_prefix="repopilot-sessions")
         self.inflight = set()
@@ -165,6 +185,11 @@ class BridgeServer:
 
     def call(self, method: str, p: dict):
         """Dispatch closed management methods; none accepts shell commands or harness writes."""
+        if method == "state.status":
+            from repopilotv3.storage.migration import StateMigration
+            return StateMigration(self.ws).status()
+        if method.startswith("browser.demo."):
+            return getattr(self.demo, method.rsplit(".", 1)[1])()
         if method == "hello":
             from repopilotv3 import __version__
 
@@ -186,6 +211,18 @@ class BridgeServer:
         if self.service is None:
             raise PilotError("Run setup to initialize private state first", "not_initialized")
         service = self.service
+        if method == "browser.pending":
+            service.check(p["session_id"])
+            return [record for record in self.ws.records("browser_transfer")
+                    if record["session_id"] == p["session_id"] and record["phase"] == "captured"][-1:]
+        if method == "browser.notice":
+            service.check(p["session_id"])
+            service.history.add(p["session_id"], "local", {"action": "browser_relay", "text": p["text"]})
+            return {"saved": True}
+        if method in {"browser.settings", "browser.transfer"}:
+            from repopilotv3.browser.settings import BrowserSettings
+            browser = BrowserSettings(service)
+            return browser.configure(**p) if method == "browser.settings" else browser.transfer(**p)
         if method.startswith("harness."):
             from repopilotv3.integrations.harness import HarnessManager
 
@@ -403,6 +440,7 @@ class BridgeServer:
         finally:
             from repopilotv3.manual.commands import CommandRunner
 
+            self.demo.stop()
             CommandRunner(self.ws).cancel_all()
             self.executor.shutdown(wait=True, cancel_futures=False)
             self.admin.shutdown(wait=True, cancel_futures=False)

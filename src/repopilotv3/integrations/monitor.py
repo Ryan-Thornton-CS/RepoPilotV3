@@ -15,7 +15,8 @@ class Monitor:
 
     def __init__(self, ws):
         """Choose an independent local SQLite store; do not touch the source index."""
-        self.path = ws.state / "monitor.sqlite3"
+        ws.config
+        self.path = ws.paths.database("monitor.sqlite3")
 
     @contextlib.contextmanager
     def db(self):

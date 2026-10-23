@@ -77,6 +77,9 @@ def parser() -> argparse.ArgumentParser:
     export = commands.add_parser("export", help="Prepare an immutable upload package")
     export.add_argument("--session", required=True)
     export.add_argument("--full-source", action="store_true")
+    state = commands.add_parser("state", help="Inspect or organize private files offline")
+    state.add_argument("action", choices=["status", "organize"])
+    state.add_argument("--confirm-stopped", action="store_true")
     return result
 
 
@@ -89,7 +92,11 @@ def main(argv=None) -> int:
     args = parser().parse_args(argv)
     ws = Workspace(args.repo, args.state)
     try:
-        if args.command == "setup":
+        if args.command == "state":
+            from repopilotv3.storage.migration import StateMigration
+            migration = StateMigration(ws)
+            result = migration.status() if args.action == "status" else migration.migrate(args.confirm_stopped)
+        elif args.command == "setup":
             ws.initialize()
             with ws.lock():
                 configure_profile(ws, args.validation)

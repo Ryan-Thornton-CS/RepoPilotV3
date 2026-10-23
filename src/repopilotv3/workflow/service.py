@@ -513,7 +513,7 @@ class WorkflowService:
             "environment": doctor(self.ws),
             "monitoring": Monitor(self.ws).status(),
             "hooks": load_json(
-                self.ws.state / "hook-health.json",
+                self.ws.paths.runtime("hook-health.json"),
                 {"coverage": "unknown", "reason": "No compatible hook events observed"},
             ),
             "copilot_capabilities": "Not probed; verify MCP/agents/hooks in the host editor separately.",

@@ -16,7 +16,8 @@ class HistoryStore:
     def __init__(self, ws):
         """Create the small history store under this host's private workspace state."""
         self.ws = ws
-        self.path = ws.state / "history.sqlite3"
+        ws.config
+        self.path = ws.paths.database("history.sqlite3")
         with self.db() as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS entries(

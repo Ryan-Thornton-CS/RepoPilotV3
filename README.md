@@ -4,11 +4,11 @@ A local VS Code panel for using a web-only model as a development assistant. Pas
 
 Copilot uses four structured agents with native development tools plus focused RepoPilot MCP retrieval/checkpoints and repository setup/status. Use **Settings → Copilot & MCP** to explicitly register the bundled server and preview/generate the workspace harness. The authoritative static bundle remains available for manual copying.
 
-V3 is independent of RepoPilot and RepoPilotV2. There is no state migration or Textual TUI.
+V3 is independent of RepoPilot and RepoPilotV2. There is no V1/V2 state migration or Textual TUI. Existing V3 state remains readable and can be explicitly reorganized offline.
 
 ## Install
 
-In VS Code, choose **Extensions: Install from VSIX** and select **[repopilotv3-0.2.14.vsix](dist/repopilotv3-0.2.14.vsix)**. Open a trusted source folder and click the RepoPilot icon. That's the entire backend setup.
+In VS Code, choose **Extensions: Install from VSIX** and select **[repopilotv3-0.2.15.vsix](https://github.com/Ryan-Thornton-CS/RepoPilotV3/releases/download/v0.2.15/repopilotv3-0.2.15.vsix)**. Open a trusted source folder and click the RepoPilot icon. That's the entire backend setup.
 
 The VSIX includes **Python 3.12, the backend, pinned dependencies, pytest, C# analysis bindings, documentation, and the static Copilot harness** for **Windows x64 and Linux/WSL x64**. It runs offline without installing Python or downloading dependencies. VS Code **1.85+** is required; Copilot agents/MCP/hooks have separate host requirements. macOS and ARM hosts are not bundled.
 
@@ -17,6 +17,8 @@ SDKs, Framework reference assemblies and Autodesk interop DLLs remain optional h
 The standalone [WebUI project prompt](src/repopilotv3/resources/webui.md) defines behavior and manual tools. Use **Prompts → Copy project prompt** and paste it once into your WebUI project's instructions. It has an enforced 8,000-character ceiling, and contains no session identity or repository source.
 
 The top-level **Projects / Documentation** tabs provide folder spaces and searchable illustrated help. Each project contains **Sessions / Context files**. Existing sessions stay in their original folder; removing a project listing never deletes its source or state.
+
+## Quick start
 
 The normal loop is **New session → copy starter → paste model reply → review changes → copy tool results**.
 
@@ -29,6 +31,14 @@ The normal loop is **New session → copy starter → paste model reply → revi
 The bottom bar groups Chat, Prompts, Execution and TODO controls. The cogwheel holds project, Copilot/MCP and maintenance settings. Use the project selector’s adjacent menu to rename or remove a project listing. Hover the circular context indicator for percentage and token counts; click it to adjust the limit. Escape closes open menus and restores focus. Context tracking is an observed estimate with a configurable 40k advisory threshold, not a measurement of remote model capacity.
 
 Drag the RepoPilot view container or use VS Code's **Move View / Move View Container** actions to put it in the Secondary Side Bar or Panel beside Chat/Codex. It is an independent view, not embedded in another extension.
+
+## Optional experimental browser relay
+
+Under **Chat**, save a WebUI address and choose **Open WebUI**. **Copy latest reply + Open WebUI** copies the completed response and opens the address; it does not paste or send. Saving an address makes no network request.
+
+**Experimental browser relay** is **off by default**. Its picker maps the input, Send control and message bubbles inside VS Code’s browser. Choose exactly one mode: fill only; send and capture for review; or full tool loop. Native browser tools must be available and permitted; older editors retain manual copy/paste. No additional model directs the browser. Local patch approvals and command grants remain in force. A restart never resumes transfers.
+
+Try **Chat → Experimental browser relay → Open local demo chat** to use a tiny, scripted localhost interface. It streams canned task/TODO and search requests without contacting a provider. See the [browser/demo guide](docs/browser-relay.md).
 
 ## What's included
 
@@ -53,6 +63,7 @@ Drag the RepoPilot view container or use VS Code's **Move View / Move View Conta
 | [Protocol and API](docs/protocol.md) | Manual JSON, management RPC, CLI and recovery |
 | [Architecture](docs/architecture.md) | Services, state ownership, trust and publication |
 | [C#/Inventor](docs/csharp-inventor.md) | SDK, reference assemblies and Windows mappings |
+| [Browser relay and local demo](docs/browser-relay.md) | Experimental picker, modes, limitations and safe synthetic testing |
 | [Development](docs/development.md) | Build the single VSIX and run verification |
 
 The repository contains Python services, a thin TypeScript extension, static harness files, tests and documentation. Generated runtimes and dependencies stay in ignored build directories. CI also provides a distribution ZIP with the full VSIX, loose .github harness, MCP examples, complete backend source and dependency locks. No separate runtime installation is needed.

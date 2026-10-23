@@ -12,6 +12,9 @@ import { McpIntegration, repositoryServerName } from './mcp';
 import { canonicalPath, pathIdentity } from './paths';
 import { ProjectRegistry } from './projects';
 import { ConfigurationEdit } from './configuration';
+import { NativeBrowser, BrowserPreferences, BrowserMappings } from './browser';
+import { BrowserRelay, RelayIO } from './relay';
+import { execFile } from 'child_process';
 
 /** Chat view independent of model providers and other extensions' private interfaces. */
 export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposable {
@@ -35,6 +38,13 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
   private entries = new Map<string, any>();
   private opened = new Set<string>();
   private latestDrafts = new Map<string, string>();
+  private browser = new NativeBrowser(vscode);
+  private relay = new BrowserRelay();
+  private relayIO?: RelayIO;
+  private browserPreferences?: BrowserPreferences;
+  private browserPage?: string;
+  private relayTail: Promise<void> = Promise.resolve();
+  private browserAdministrative = false;
   private output = vscode.window.createOutputChannel('RepoPilotV3');
 
   /** Capture native diff storage and the installed extension's bundled resources. */
@@ -50,7 +60,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       if (message) { void this.handle(message).catch(error => this.error(error)); }
       else { this.error(new Error('Invalid panel message rejected.')); }
     }, undefined, this.context.subscriptions);
-    view.onDidDispose(() => { this.view = undefined; });
+    view.onDidDispose(() => { this.relay.pause('Panel closed; browser relay is disarmed.'); void this.browser.cancelPicker(); this.view = undefined; });
   }
 
   private html(webview: vscode.Webview): string {
@@ -61,7 +71,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
       <link rel="stylesheet" href="${css}"><title>RepoPilotV3</title></head><body>
       <nav id="top-tabs" role="tablist" aria-label="RepoPilot pages"><button id="projects-tab" role="tab" aria-selected="true" aria-controls="projects-page">Projects</button><button id="documentation-tab" role="tab" aria-selected="false" aria-controls="documentation-page">Documentation</button></nav>
-      <section id="documentation-page" role="tabpanel" aria-labelledby="documentation-tab" hidden><div class="search-header"><input id="help-search" type="search" placeholder="Search documentation" aria-label="Search documentation"></div><div id="help-topics"></div></section>
+      <section id="documentation-page" role="tabpanel" aria-labelledby="documentation-tab" hidden><div class="search-header"><input id="help-search" type="search" placeholder="Search documentation" aria-label="Search documentation"></div><nav id="help-contents" aria-label="Help contents"></nav><div class="help-match-controls"><span id="help-matches" role="status"></span><button id="help-previous-match" aria-label="Previous search match">Previous match</button><button id="help-next-match" aria-label="Next search match">Next match</button></div><div id="help-topics"></div></section>
       <section id="projects-page" role="tabpanel" aria-labelledby="projects-tab">
       <div class="project-bar"><select id="project-select" aria-label="Project space"><option value="">Select project</option></select><button data-action="projectAdd" title="Add a project folder">＋ Project</button><button id="project-menu-toggle" aria-label="Project actions" aria-expanded="false" aria-controls="project-menu">⋯</button><nav id="project-menu" class="popover" hidden aria-label="Project actions"><button data-action="projectRename">Rename project</button><button data-action="projectRemove">Remove project…</button></nav></div>
       <nav id="project-tabs" role="tablist" aria-label="Project pages"><button id="sessions-tab" role="tab" aria-selected="true" aria-controls="session-page">Sessions</button><button id="context-tab" role="tab" aria-selected="false" aria-controls="context-page">Context files</button></nav>
@@ -70,7 +80,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       <header><button id="sessions-toggle" aria-label="Sessions" aria-expanded="false" aria-controls="session-drawer">☰</button><strong id="title">RepoPilotV3</strong><button data-action="new" title="New session" aria-label="New session">＋</button><div id="options-anchor"><button id="options-toggle" title="Options" aria-label="Options" aria-expanded="false" aria-controls="options">⚙</button>      <nav id="options" class="popover" hidden aria-label="Options">
         <details><summary>Copilot &amp; MCP</summary><button data-action="mcpEnable">Enable MCP for selected project</button><button data-action="mcpStatus">MCP status</button><button data-action="mcpConfig">Open MCP configuration</button><button data-action="mcpDisable">Disable a project MCP</button><button data-action="generateHarness">Generate / update workspace harness</button><button data-action="harnessWorkspace">Open workspace .github</button><button data-action="harness">Open bundled harness</button><button data-action="harnessRecover">Recover harness update</button></details>
         <details><summary>Projects</summary><button data-action="projectAdd">Add project folder</button><button data-action="projectRename">Rename project space</button><button data-action="projectRemove">Remove project space…</button><small id="workspace-root">No project selected</small></details>
-        <details><summary>Maintenance</summary><button data-action="retention">Export retention settings</button><button data-action="diagnostics">Diagnostics</button><button data-action="restart">Reconnect backend</button><button data-action="settings">Extension settings</button></details>
+        <details><summary>Maintenance</summary><button data-action="stateOrganize">Organize private state…</button><button data-action="retention">Export retention settings</button><button data-action="diagnostics">Diagnostics</button><button data-action="restart">Reconnect backend</button><button data-action="settings">Extension settings</button></details>
       </nav></div></header>
       <aside id="session-drawer" hidden><div class="search-header"><input id="search" type="search" placeholder="Search sessions" aria-label="Search sessions"><label><input id="archived" type="checkbox"> Show archived</label></div><div id="sessions"></div></aside>
 
@@ -78,15 +88,15 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
       <footer><div id="job" role="status" aria-live="polite">Local tools · no connected model</div><section class="composer">
         <textarea id="request" rows="3" placeholder="Paste model tool requests or write a message…" aria-label="Message or model reply"></textarea>
         <div class="composer-actions"><button id="paste" data-action="pasteRun">Paste + Run</button><button id="composer-menu" title="Composer actions" aria-label="Composer actions" aria-expanded="false" aria-controls="composer-options">⋯</button><button id="stop" data-action="stop" hidden>Stop</button><button id="send" data-action="send" class="primary">Send ↗</button></div>
-        <div id="composer-options" class="popover" hidden><button id="run" data-action="run">Run as model reply</button><button data-action="forward">Copy message for WebUI</button><button data-action="note">Save local note</button></div>
+        <div id="composer-options" class="popover" hidden><button data-action="forward">Copy message for WebUI</button><button data-action="note">Save local note</button></div>
       </section><div class="message-bar">
         <button id="chat-toggle" aria-expanded="false" aria-controls="chat-menu">Chat</button><button id="prompts-toggle" aria-expanded="false" aria-controls="prompts-menu">Prompts</button><button id="execution-toggle" aria-expanded="false" aria-controls="execution-menu">Execution</button><button id="todo-toggle" aria-expanded="false" aria-controls="todo-panel">TODO 0/0</button><button id="context-meter" data-action="limit" aria-label="Context window: estimated usage" title="Estimated recorded context"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle class="context-track" cx="12" cy="12" r="9"/><circle id="context-progress" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><span id="context-description" class="sr-only">Context window: 0% full</span></button><button id="update-context" aria-controls="packages" aria-expanded="false">Context files</button>
       </div><section id="todo-panel" class="popover" hidden><div class="toolbar"><button data-action="todoReset">Reset checklist…</button></div><strong id="task">Waiting for model task/TODO</strong><ul id="items"></ul></section>
       <section id="packages" class="popover" hidden><strong>WebUI context</strong><p id="freshness" role="status"></p><div class="toolbar"><button data-action="package">Open folder</button><button data-action="instructions">Copy instructions</button><button data-action="prepare" id="retry-context" hidden>Retry refresh</button><button data-action="confirm">Confirm transfers</button></div><details><summary>Package settings</summary><button data-action="project">External project scope</button><label><input id="full" type="checkbox"> Full eligible-source package</label></details><ul id="checklist"></ul><p>Only confirm files you actually pasted/uploaded. Local generation does not update the WebUI.</p></section>
-      <nav id="chat-menu" class="popover bottom-menu" hidden aria-label="Chat actions"><button data-action="starter">Copy session starter</button><button data-action="handoff">Generate handoff</button><button data-action="rename">Rename session</button><button data-action="archive">Archive / restore</button><button data-action="delete">Delete session…</button></nav>
+      <nav id="chat-menu" class="popover bottom-menu" hidden aria-label="Chat actions"><button data-action="webuiSet">Set WebUI address</button><button data-action="webuiOpen">Open WebUI</button><button data-action="webuiCopyOpen">Copy latest reply + Open WebUI</button><button data-action="browserOptions">Experimental browser relay…</button><button data-action="starter">Copy session starter</button><button data-action="handoff">Generate handoff</button><button data-action="rename">Rename session</button><button data-action="archive">Archive / restore</button><button data-action="delete">Delete session…</button></nav>
       <nav id="prompts-menu" class="popover bottom-menu" hidden aria-label="Prompts"><button data-action="projectPrompt">Copy project prompt</button><button data-action="roleCopy" data-role="planning">Copy Planning prompt</button><button data-action="roleCopy" data-role="asking">Copy Asking prompt</button><button data-action="roleCopy" data-role="implementation">Copy Implementation prompt</button><button data-action="roleCopy" data-role="review">Copy Review prompt</button><button data-action="roleEdit">Edit prompts</button><button data-action="roleReset">Reset prompt to default…</button></nav>
       <nav id="execution-menu" class="popover bottom-menu" hidden aria-label="Execution"><button data-action="setup">Validation profile</button><button data-action="permission">Command permission</button><button data-action="todo">Recovery checkpoint</button></nav>
-      <div class="continuation-bar"><div id="warning" role="status"></div><button id="continue-chat" data-action="handoff" hidden>Continue in new chat</button></div></footer></section></section><script nonce="${nonce}" src="${js}"></script></body></html>`;
+      <div id="browser-status" role="status" hidden><span id="browser-status-text"></span><button data-action="browserPause">Pause relay</button><button data-action="browserStart">Start relay</button></div><div id="browser-capture" hidden><p>Experimental: model reply captured. Review before running.</p><pre id="browser-capture-text"></pre><button data-action="browserImport">Import + Run captured reply</button></div><div class="continuation-bar"><div id="warning" role="status"></div><button id="continue-chat" data-action="handoff" hidden>Continue in new chat</button></div></footer></section></section><script nonce="${nonce}" src="${js}"></script></body></html>`;
   }
 
   private post(value: unknown): void { void this.view?.webview.postMessage(value); }
@@ -130,6 +140,8 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     }
     await this.client.connect();
     if (!this.client.hello!.initialized) {
+      const layout = this.client.hello?.methods?.includes('state.status') ? await this.client.request('state.status') : {};
+      if (layout.recovery_required) { this.post({ type: 'notice', message: 'Private-state organization was interrupted. Use Maintenance → Organize private state to recover offline.' }); return this.client; }
       await this.client.request('setup', { validation: 'keep' }); this.client.hello!.initialized = true;
     }
     return this.client;
@@ -149,6 +161,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     await this.documentation();
     if (!this.folder && !this.context.workspaceState.get<string>('workspace') && (this.context.workspaceState.get<boolean>('project.registryInitialized') || !vscode.workspace.workspaceFolders?.length)) { this.post({ type: 'state', sessions: [], selected: null }); return; }
     const client = await this.backend();
+    if (!client.hello?.initialized) { this.post({ type: 'state', sessions: [], selected: null }); return; }
     await this.projectState();
     this.post({ type: 'connection', workspace: client.root });
     if (!this.selected) { this.selected = (await client.request('sessions.selected')).session_id ?? undefined; }
@@ -187,10 +200,19 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     if (session !== this.selected || epoch !== this.epoch) { return; }
     for (const entry of history) { this.entries.set(entry.id, entry); }
     this.post({ type: 'state', sessions, selected: session, status, history, earlier: !!before, contextRefresh: this.packageStates.get(session) });
+    if (client.hello?.methods?.includes('browser.pending')) {
+      const pending = await client.request('browser.pending', { session_id: session });
+      if (this.selected === session && this.epoch === epoch) this.post({ type: 'browserCapture', text: pending[0]?.text || '' });
+      if (!this.relay.armed && !this.browserAdministrative) {
+        const browser = await client.request('browser.settings', { session_id: session });
+        if (this.selected === session && this.epoch === epoch) this.post({ type: 'browserStatus', hidden: !browser.settings.enabled,
+          text: `Experimental relay configured · ${browser.settings.mode} · paused. Select the browser tab and Start explicitly.` });
+      }
+    }
   }
 
   private async background(): Promise<void> {
-    if (!this.view?.visible || !this.selected || this.refreshing || this.jobs || this.switching) { return; }
+    if (!this.view?.visible || !this.selected || this.refreshing || this.jobs || this.switching || this.browserAdministrative) { return; }
     this.refreshing = true;
     const session = this.selected;
     try {
@@ -233,22 +255,26 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     this.post({ type: 'notice', message: notice });
   }
 
-  private async completed(client: BackendClient, session: string, result: any, epoch: number): Promise<void> {
+  private async completed(client: BackendClient, session: string, result: any, epoch: number, automatic = false): Promise<void> {
     if (session === this.selected && epoch === this.epoch) { await this.refresh(); }
     try { await this.effects(client, session, result); }
     catch (error) { this.error(error); }
     let text = result.copy_text ?? JSON.stringify(result, null, 2);
-    if (session === this.selected && epoch === this.epoch && !result.pending && text &&
-        vscode.workspace.getConfiguration('repopilotv3', this.folder!.uri).get<boolean>('autoCopyResponses', true)) {
+    if (session === this.selected && epoch === this.epoch && !result.pending && text) {
       const entryId = result.entry_id ?? (result.reply_id ? `reply-result:${result.reply_id}` : undefined);
       if (entryId) {
         try { text = (await client.request('history.copy_turn', { session_id: session, entry_id: entryId })).copy_text ?? text; }
         catch (error) { this.output.appendLine(`Full-turn copy unavailable: ${String(error)}`); }
       }
-      if (session === this.selected && epoch === this.epoch) { await this.copy(client, session, text); }
+      if (!automatic && !this.relay.armed && vscode.workspace.getConfiguration('repopilotv3', this.folder!.uri).get<boolean>('autoCopyResponses', true) && session === this.selected && epoch === this.epoch) { await this.copy(client, session, text); }
     }
     if (session === this.selected) { await this.refresh(); }
     this.post({ type: 'completed', session });
+    if (this.relay.armed && session === this.selected) {
+      if (result.pending || result.ok === false || result.status === 'failed' || result.status === 'awaiting_permission') this.relay.pause('Local approval or an error needs attention. Resolve it, then Start the relay.');
+      else if (!automatic || result.results?.length) this.queueRelay(client, session, result.reply_id || result.entry_id || crypto.createHash('sha256').update(text).digest('hex'), text);
+      else this.relay.pause('The model replied without tool requests. Waiting for your input.');
+    }
   }
 
   private async create(client: BackendClient, epoch: number): Promise<void> {
@@ -344,6 +370,8 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
   }
 
   private async handle(message: PanelMessage): Promise<void> {
+    if (this.browserAdministrative && !['browserPause', 'draft'].includes(message.action)) throw new Error('Finish or cancel browser setup first.');
+    if (this.relay.working && !['browserPause', 'stop', 'draft', 'history', 'search'].includes(message.action)) throw new Error('Pause the experimental browser relay and let its current operation finish before changing chats or running other work.');
     if (message.action === 'draft' && message.sessionId && message.text !== undefined) { this.latestDrafts.set(message.sessionId, message.text); }
     if (this.switching && !['workspace', 'projectAdd', 'projectSelect'].includes(message.action)) {
       if (message.action === 'draft' || message.action === 'ready') { return; }
@@ -351,6 +379,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     }
     if (message.action.startsWith('project') && ['projectAdd', 'projectSelect', 'projectRename', 'projectRemove'].includes(message.action)) { await this.projectAction(message); return; }
     if (['roleCopy', 'roleEdit', 'roleReset'].includes(message.action)) { await this.roleAction(message); return; }
+    if (['webuiSet', 'webuiOpen', 'webuiCopyOpen', 'browserOptions', 'browserStart', 'browserPause', 'browserImport', 'stateOrganize'].includes(message.action)) { await this.browserAction(message.action); return; }
     if (message.action === 'ready') { await this.restore(); return; }
     if (['mcpEnable', 'mcpStatus', 'mcpConfig', 'mcpDisable', 'generateHarness', 'harnessWorkspace', 'harnessRecover', 'retention'].includes(message.action)) { await this.integrationAction(message.action); return; }
     if (message.action === 'harness') { await this.openHarness(); return; }
@@ -362,7 +391,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     if (message.action === 'draft') { await client.request('draft.save', { session_id: message.sessionId, text: message.text }); return; }
     if (message.action === 'search') { this.query = message.text!; this.archived = message.value ?? false; await this.refresh(); return; }
     if (message.action === 'history') { await this.refresh(Math.min(...[...this.entries.values()].map(e => e.sequence))); return; }
-    if (message.action === 'select') { this.epoch++; this.selected = message.sessionId; this.entries.clear(); await client.request('sessions.select', { session_id: this.selected }); await this.refresh(); void this.background(); return; }
+    if (message.action === 'select') { this.relay.pause('Session changed; Start explicitly to resume.'); this.browserPage = undefined; this.post({ type: 'browserCapture', text: '' }); this.epoch++; this.selected = message.sessionId; this.entries.clear(); await client.request('sessions.select', { session_id: this.selected }); await this.refresh(); void this.background(); return; }
     if (message.action === 'stop') {
       const status = await client.request('sessions.status', { session_id: this.session() });
       for (const command of status.running_commands) { await client.request('commands.cancel', { session_id: this.selected, command_id: command.command_id }); }
@@ -373,7 +402,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     const epoch = ++this.epoch;
     this.jobs++;
     try {
-      if (message.action === 'new') { await this.create(client, epoch); return; }
+      if (message.action === 'new') { this.relay.pause('New session; browser relay is disarmed.'); this.browserPage = undefined; await this.create(client, epoch); return; }
       if (message.action === 'projectPrompt') {
         const session = this.selected;
         const prompt = await client.request('prompts.project');
@@ -397,10 +426,6 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
           if (!message.text?.trim()) { return; }
           await this.completed(client, session, await client.request('prompts.compose', { session_id: session, text: message.text }), epoch);
           this.post({ type: 'clearComposer', session, text: message.text }); break;
-        }
-        case 'run': {
-          const result = await this.importReply(client, session, message.text!, epoch);
-          if (result?.ok) { this.post({ type: 'clearComposer', session, text: message.text }); } break;
         }
         case 'pasteRun': await this.importReply(client, session, await vscode.env.clipboard.readText(), epoch); break;
         case 'resolve': await this.resolve(client, session, message.replyId!, message.value!, epoch); break;
@@ -444,6 +469,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
             const yes = await vscode.window.showInformationMessage('Open a new external WebUI chat, then confirm to create its local continuation.', 'New external chat is open');
             if (!yes || this.selected !== session) return;
             const result = await client.request('handoff', { session_id: session, confirmed_new_chat: true });
+            this.relay.pause('Continuation created. Select its browser chat controls and Start explicitly.'); this.browserPage = undefined;
             this.selected = result.session_id; this.entries.clear();
             await this.completed(client, result.session_id, result, this.epoch);
           } finally { this.continuing.delete(session); this.post({ type: 'continuing', session, value: false }); }
@@ -621,9 +647,243 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
     this.post({ type: 'projects', projects: this.projects.list(), selectedUri: this.folder?.uri.toString() });
   }
 
+  /** Resolve a saved address using an explicit session override and project default. */
+  private async openWebUI(client: BackendClient): Promise<void> {
+    let settings = (await client.request('browser.settings', this.selected ? { session_id: this.selected } : {})).settings;
+    if (!settings.url) { await this.setWebUI(client); settings = (await client.request('browser.settings', this.selected ? { session_id: this.selected } : {})).settings; }
+    if (!settings.url) return;
+    const commands = await vscode.commands.getCommands(true);
+    if (commands.includes('workbench.action.browser.open')) {
+      await vscode.commands.executeCommand('workbench.action.browser.open', settings.url);
+    } else {
+      void vscode.window.showInformationMessage('Integrated Browser is unavailable in this editor. Opening your external browser; copy/paste still works.');
+      await vscode.env.openExternal(vscode.Uri.parse(settings.url));
+    }
+  }
+
+  /** Saving an HTTP/HTTPS address performs no availability probe or navigation. */
+  private async setWebUI(client: BackendClient): Promise<void> {
+    this.relay.pause('WebUI address changed; select its controls before resuming.'); this.browserPage = undefined;
+    const scope = this.selected ? await vscode.window.showQuickPick(['Project default', 'This session override'], { title: 'Save WebUI address for' }) : 'Project default';
+    if (!scope) return;
+    const params = scope === 'This session override' ? { session_id: this.session() } : {};
+    const previous = await client.request('browser.settings', params);
+    const url = await vscode.window.showInputBox({ title: 'WebUI HTTP/HTTPS address (blank clears override)', value: previous.local.url || '' });
+    if (url !== undefined) await client.request('browser.settings', { ...params, settings: { url: url.trim() } });
+  }
+
+  /** Find the last useful completed local/user prompt rather than copying an initialization log. */
+  private async latestBrowserReply(client: BackendClient, session: string): Promise<{ id: string; text: string }> {
+    const history = await client.request('history.list', { session_id: session });
+    const entry = [...history].reverse().find((entry: any) => entry.body?.copy_text && !entry.body?.pending);
+    if (!entry) throw new Error('No completed response is available. Copy the session starter or submit a message first.');
+    const turn = await client.request('history.copy_turn', { session_id: session, entry_id: entry.id });
+    return { id: entry.body.reply_id || entry.id, text: turn.copy_text };
+  }
+
+  /** Queue browser work behind the current transfer, including results from automatic imports. */
+  private queueRelay(client: BackendClient, session: string, id: string, text: string): void {
+    const io = this.relayIO, preferences = this.browserPreferences;
+    if (!io || !preferences) return;
+    this.relayTail = this.relayTail.then(async () => {
+      if (this.relay.armed && this.client === client && this.selected === session) await this.relay.transfer(io, preferences, id, text);
+    }).catch(error => {
+      this.relay.pause(String(error));
+      void client.request('browser.notice', { session_id: session, text: 'Experimental browser relay paused: ' + String(error) }).then(() => this.refresh()).catch(() => {});
+    });
+  }
+
+  /** Wire one explicitly bound chat to native tools; restoring preferences never calls this. */
+  private async armBrowser(client: BackendClient): Promise<void> {
+    const session = this.session(), epoch = this.epoch;
+    const preferences: BrowserPreferences = (await client.request('browser.settings', { session_id: session })).settings;
+    if (!this.browserPage) throw new Error('Choose Experimental browser relay → Select chat controls before starting.');
+    const page = this.browserPage;
+    const address = (await this.browser.snapshot(page, preferences.selectors)).url;
+    const io: RelayIO = {
+      snapshot: () => this.browser.snapshot(page, preferences.selectors),
+      fill: text => this.browser.fill(page, preferences.selectors, text, address), send: () => this.browser.send(page, preferences.selectors, address),
+      current: () => this.client === client && this.selected === session && !this.switching,
+      journal: (id, phase, text) => client.request('browser.transfer', { session_id: session, transfer_id: id, phase, ...(text ? { text } : {}) }),
+      status: text => { if (this.client === client && this.selected === session) this.post({ type: 'browserStatus', text }); },
+      captured: async (text, automatic) => {
+        this.post({ type: 'browserCapture', text });
+        if (!automatic) { this.post({ type: 'browserStatus', text: 'Experimental: reply captured. Review it, then Import + Run.' }); return; }
+        const preview = await client.request('replies.preview', { session_id: session, text });
+        if (preview.has_commands && !await this.saveBeforeCommand(client)) { this.relay.pause('Save source editors before executing this captured command.'); return; }
+        this.jobs++;
+        try {
+          const result = await client.request('replies.import', { session_id: session, text });
+          const id = 'capture-' + crypto.createHash('sha256').update(text).digest('hex');
+          await client.request('browser.transfer', { session_id: session, transfer_id: id, phase: 'imported', text });
+          this.post({ type: 'browserCapture', text: '' });
+          await this.completed(client, session, result, this.epoch, true);
+        } finally { this.jobs--; }
+      }
+    };
+    this.relayIO = io; this.browserPreferences = preferences;
+    await this.relay.start(io, preferences);
+    await client.request('browser.notice', { session_id: session, text: `Experimental browser relay started (${preferences.mode}). Local approvals still apply.` });
+    if (this.selected !== session || this.epoch !== epoch) { this.relay.pause('Session changed.'); return; }
+    const latest = await this.latestBrowserReply(client, session);
+    this.queueRelay(client, session, latest.id, latest.text);
+  }
+
+  /** Guide user-picked mappings, preview each selector and avoid any automatic test sends. */
+  private async pickBrowser(client: BackendClient): Promise<void> {
+    this.relay.pause('Configuring browser controls.');
+    const pages = await this.browser.pages();
+    if (!pages.length) throw new Error('No accessible integrated-browser pages. Open your chat, grant native browser access if requested, then retry.');
+    const page = await vscode.window.showQuickPick(pages.map(p => ({ label: p.label, description: p.url, page: p })), { title: 'Select the WebUI browser tab' });
+    if (!page) return;
+    const session = this.session();
+    const settings: BrowserPreferences = (await client.request('browser.settings', { session_id: session, settings: { url: page.page.url } })).settings;
+    if (settings.selectors.input) {
+      const reuse = await vscode.window.showQuickPick(['Use saved site mappings', 'Pick / refine controls'], { title: 'This site has saved mappings' });
+      if (!reuse) return;
+      if (reuse === 'Use saved site mappings') {
+        await this.browser.snapshot(page.page.id, settings.selectors);
+        this.browserPage = page.page.id;
+        this.post({ type: 'browserStatus', text: 'Saved mappings verified. Choose Start explicitly.' }); return;
+      }
+    }
+    const selectors: BrowserMappings = { ...settings.selectors };
+    const fields: [keyof BrowserMappings, string, boolean][] = [
+      ['input', 'message input', false], ['send', 'Send button (optional for fill-only)', false],
+      ['sent', 'an existing USER message bubble', true], ['reply', 'an existing MODEL reply bubble', true],
+      ['busy', 'Stop/generating control visible ONLY while generating (optional if a completion selector is configured)', false]
+    ];
+    for (const [key, label, family] of fields) {
+      const choice = await vscode.window.showQuickPick(['Pick on page', 'Enter CSS selector', 'Keep / skip'], { title: 'Select ' + label });
+      if (!choice) return;
+      if (choice === 'Pick on page') {
+        await this.browser.code(page.page.id, 'await page.bringToFront(); return true;');
+        this.post({ type: 'browserStatus', text: 'Select ' + label + ' in the browser. Escape cancels.' });
+        const selected = await this.browser.pick(page.page.id, family);
+        if (!selected) return;
+        if (!family && selected.matches !== 1) throw new Error('The selection is ambiguous. Choose a unique control or enter its selector.');
+        const verified = await vscode.window.showInputBox({ title: `${selected.matches} match(es) · ${selected.preview}`, prompt: family ? 'Selector must match each message of this role, excluding the other role.' : 'Confirm or refine this unique selector.', value: selected.selector });
+        if (verified === undefined) return;
+        selectors[key] = verified;
+        if (key === 'reply' && selected.complete && verified === selected.selector) selectors.complete = selected.complete;
+      } else if (choice === 'Enter CSS selector') {
+        const value = await vscode.window.showInputBox({ title: 'CSS selector for ' + label, value: selectors[key] || '' });
+        if (value === undefined) return;
+        selectors[key] = value;
+      }
+    }
+    if (!selectors.busy) {
+      const complete = await vscode.window.showInputBox({ title: 'Completed model bubble selector (must select the newest reply only after completion)', value: selectors.complete || '', prompt: 'Leave blank for fill-only. A text-stability delay is not a completion signal.' });
+      if (complete === undefined) return;
+      selectors.complete = complete;
+    }
+    await this.browser.snapshot(page.page.id, selectors);
+    await client.request('browser.settings', { session_id: session, settings: { selectors, url: page.page.url } });
+    this.browserPage = page.page.id;
+    this.post({ type: 'browserStatus', text: 'Controls saved. Experimental relay is paused; choose Start explicitly.' });
+  }
+
+  /** Handle explicit local browser administration separately from the model tool registry. */
+  private async browserAction(action: string): Promise<void> {
+    if (action === 'browserPause') { this.relay.pause(); await this.browser.cancelPicker(); return; }
+    if (this.browserAdministrative) throw new Error('Browser setup is already open.');
+    this.browserAdministrative = true;
+    try { await this.performBrowserAction(action); }
+    finally { this.browserAdministrative = false; }
+  }
+
+  /** Keep local setup atomic while allowing Pause to cancel an active picker. */
+  private async performBrowserAction(action: string): Promise<void> {
+    requireTrusted(vscode.workspace.isTrusted);
+    if (action === 'browserPause') { this.relay.pause(); return; }
+    if (this.jobs || this.switching || this.relay.working) throw new Error('Pause/finish browser and repository work first.');
+    const client = await this.backend();
+    if (action === 'webuiSet') { await this.setWebUI(client); return; }
+    if (action === 'webuiOpen') { await this.openWebUI(client); return; }
+    if (action === 'webuiCopyOpen') {
+      const session = this.session(), latest = await this.latestBrowserReply(client, session);
+      await this.copy(client, session, latest.text); await this.openWebUI(client); return;
+    }
+    if (action === 'stateOrganize') { await this.organizeState(client); return; }
+    if (action === 'browserStart') { await this.armBrowser(client); return; }
+    if (action === 'browserImport') {
+      const session = this.session(), pending = (await client.request('browser.pending', { session_id: session }))[0];
+      if (!pending) throw new Error('No captured reply is waiting.');
+      this.jobs++;
+      try {
+        const result = await this.importReply(client, session, pending.text, ++this.epoch);
+        if (result) { await client.request('browser.transfer', { session_id: session, transfer_id: pending.transfer_id, phase: 'imported', text: pending.text }); this.post({ type: 'browserCapture', text: '' }); }
+      } finally { this.jobs--; }
+      return;
+    }
+    const params = this.selected ? { session_id: this.selected } : {};
+    const preferences: BrowserPreferences = (await client.request('browser.settings', params)).settings;
+    const choice = await vscode.window.showQuickPick([
+      { label: `${preferences.enabled ? 'Disable' : 'Enable'} Experimental browser relay`, key: 'toggle' },
+      { label: `${preferences.mode === 'fill' ? 'Selected: ' : ''}Fill the message only`, key: 'fill' },
+      { label: `${preferences.mode === 'capture' ? 'Selected: ' : ''}Send and capture`, key: 'capture' },
+      { label: `${preferences.mode === 'loop' ? 'Selected: ' : ''}Full tool loop`, key: 'loop' },
+      { label: 'Select chat controls…', key: 'pick' }, { label: 'Start / Continue relay', key: 'start' },
+      { label: 'Open controllable chat tab (sign in here)', key: 'openControlled' },
+      { label: 'Open local demo chat', key: 'demo' }, { label: 'Stop local demo', key: 'stopDemo' },
+      { label: `Automatic turn budget (${preferences.budget})`, key: 'budget' },
+      { label: 'Disconnect browser relay', key: 'disconnect' }
+    ], { title: 'Experimental browser relay · ' + (this.browser.available() ? 'native tools available' : 'browser control unavailable') });
+    if (!choice) return;
+    if (choice.key === 'openControlled') {
+      if (!preferences.url) throw new Error('Use Chat → Set WebUI address first.');
+      this.relay.pause('Opening a controllable tab. Sign in, select controls, then Start.');
+      this.browserPage = await this.browser.open(preferences.url); return;
+    }
+    if (choice.key === 'demo') {
+      const demo = await client.request('browser.demo.start');
+      const local = await vscode.env.asExternalUri(vscode.Uri.parse(demo.url));
+      const commands = await vscode.commands.getCommands(true);
+      if (this.browser.available()) this.browserPage = await this.browser.open(local.toString());
+      else if (commands.includes('workbench.action.browser.open')) await vscode.commands.executeCommand('workbench.action.browser.open', local.toString());
+      else { await vscode.env.openExternal(local); void vscode.window.showInformationMessage('Demo is viewable externally; relay requires native VS Code browser tools.'); }
+      return;
+    }
+    if (choice.key === 'stopDemo') { this.relay.pause('Local demo stopped.'); await client.request('browser.demo.stop'); return; }
+    if (choice.key === 'start') { await this.armBrowser(client); return; }
+    if (choice.key === 'pick') { await this.pickBrowser(client); return; }
+    this.relay.pause('Experimental settings changed. Start explicitly to resume.');
+    if (choice.key === 'toggle') await client.request('browser.settings', { ...params, settings: { enabled: !preferences.enabled } });
+    else if (['fill', 'capture', 'loop'].includes(choice.key)) await client.request('browser.settings', { ...params, settings: { mode: choice.key } });
+    else if (choice.key === 'disconnect') { this.browserPage = undefined; this.relayIO = undefined; await client.request('browser.settings', { ...params, settings: { enabled: false } }); }
+    else if (choice.key === 'budget') {
+      const budget = await vscode.window.showInputBox({ title: 'Automatic model turns per Start (1–100)', value: String(preferences.budget) });
+      if (budget) await client.request('browser.settings', { ...params, settings: { budget: Number(budget) } });
+    }
+    this.post({ type: 'browserStatus', text: 'Experimental settings saved. Relay is paused.' });
+  }
+
+  /** Close this writer before invoking the explicit offline migration with an argument array. */
+  private async organizeState(client: BackendClient): Promise<void> {
+    const status = await client.request('state.status');
+    if (!status.migration_required && !status.recovery_required) { void vscode.window.showInformationMessage('Private state is already organized.'); return; }
+    if (await vscode.window.showWarningMessage('Stop all other RepoPilot windows, MCP servers and hooks before continuing.', { modal: true, detail: 'This panel will stop its backend. Databases are backed up and verified before paths change. Older backend versions cannot use the upgraded configuration.' }, 'Other backends are stopped') !== 'Other backends are stopped') return;
+    this.relay.pause('Organizing private state.'); this.switching = true;
+    try {
+      const root = client.root, config = vscode.workspace.getConfiguration('repopilotv3', vscode.Uri.file(root));
+      const python = await backendPython(config.get<string>('pythonPath', 'bundled'), this.context.extensionUri.fsPath);
+      const args = ['-I', '-B', '-m', 'repopilotv3', '--repo', root];
+      const state = config.get<string>('statePath', ''); if (state) args.push('--state', state);
+      args.push('state', 'organize', '--confirm-stopped');
+      await client.close(); this.client = undefined;
+      const outcome = await new Promise<any>((resolve, reject) => execFile(python, args, { cwd: root, windowsHide: true }, (error, stdout, stderr) => {
+        if (error) reject(new Error(stderr || stdout || error.message));
+        else { try { resolve(JSON.parse(stdout)); } catch { reject(new Error('Migration returned no confirmed result. Inspect private recovery metadata before retrying.')); } }
+      }));
+      void vscode.window.showInformationMessage(outcome.layout === 'organized' ? 'Private state organized. Reconnect other MCP/editor instances with the matching backend.' : 'Interrupted migration rolled back safely. Choose Organize private state again to upgrade.');
+    } finally { this.switching = false; await this.restore(); }
+  }
+
   /** Load shipped help as data, with image paths restricted to bundled documentation. */
   private async documentation(): Promise<void> {
     const topics = JSON.parse(await fs.readFile(path.join(this.context.extensionUri.fsPath, 'docs/help.json'), 'utf8'));
+    const callouts = JSON.parse(await fs.readFile(path.join(this.context.extensionUri.fsPath, 'docs/callouts.json'), 'utf8'));
+    for (const topic of topics) topic.callouts = callouts[topic.callout_key] || [];
     for (const topic of topics) {
       if (typeof topic.image === 'string' && /^images\/[a-z0-9-]+\.png$/.test(topic.image)) {
         topic.image = this.view?.webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'docs', topic.image)).toString();
@@ -635,7 +895,8 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
   /** Handle folder-space metadata without deleting source, state or MCP registrations. */
   private async projectAction(message: PanelMessage): Promise<void> {
     requireTrusted(vscode.workspace.isTrusted);
-    if (this.jobs || this.switching) { throw new Error('Finish or explicitly stop current work before changing project spaces.'); }
+    if (this.jobs || this.switching || this.relay.working) { throw new Error('Finish or explicitly stop current work before changing project spaces.'); }
+    this.relay.pause('Project changed; browser relay is disarmed.'); this.browserPage = undefined;
     if (message.action === 'projectAdd') { await this.chooseWorkspace(); return; }
     const project = message.projectId ? this.projects.get(message.projectId) : this.projects.list().find(p => p.uri === this.folder?.uri.toString());
     if (!project) { throw new Error('Select a project first.'); }
@@ -678,7 +939,8 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
 
   /** Change backend ownership only after pending work finishes; restoration never replays. */
   private async switchProject(folder: ProjectFolder): Promise<void> {
-    if (this.jobs || this.switching) { throw new Error('Finish or explicitly stop current work before changing projects.'); }
+    if (this.jobs || this.switching || this.relay.working) { throw new Error('Finish or explicitly stop current work before changing projects.'); }
+    this.relay.pause('Project changed; browser relay is disarmed.'); this.browserPage = undefined;
     if (this.client?.hello && this.selected) {
       const status = await this.client.request('sessions.status', { session_id: this.selected });
       if (status.running_commands?.length) { throw new Error('Stop the running command before changing projects.'); }
@@ -728,6 +990,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
 
   /** Reconnect and read passive history without replaying accepted requests. */
   public async restart(): Promise<void> {
+    this.relay.pause('Backend reconnect: browser relay is disarmed.'); this.browserPage = undefined;
     if (this.jobs || this.refreshing || this.switching) { throw new Error('Stop current commands and wait for work before reconnecting.'); }
     await this.client?.close(); this.client = undefined; await this.restore();
   }
@@ -740,6 +1003,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
 
   /** Drain accepted backend work and timers before editor-host shutdown. */
   public async close(): Promise<void> {
+    this.relay.pause('Editor closing: browser relay is disarmed.');
     this.switching = true;
     if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = undefined; }
     if (this.initializing) await this.initializing;
@@ -749,6 +1013,7 @@ export class SessionPanel implements vscode.WebviewViewProvider, vscode.Disposab
 
   /** Release presentation resources and disconnect the backend supervisor pipes. */
   public dispose(): void {
+    this.relay.pause();
     if (this.refreshTimer) { clearInterval(this.refreshTimer); }
     this.client?.dispose(); this.output.dispose();
   }

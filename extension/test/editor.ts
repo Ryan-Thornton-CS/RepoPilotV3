@@ -8,6 +8,8 @@ import { deactivate, dirtyAffectedEditors, SessionPanel } from '../src/extension
 import { BackendClient } from '../src/backend';
 import { backendPython } from '../src/runtime';
 import { ProjectWorkspaces } from '../src/workspaces';
+import { NativeBrowser, BrowserPreferences, installPicker } from '../src/browser';
+import { BrowserRelay, RelayIO } from '../src/relay';
 
 /** Verify stable native APIs, extension discovery and an actual local backend round trip. */
 export async function run(): Promise<void> {
@@ -19,9 +21,66 @@ export async function run(): Promise<void> {
   const root = vscode.workspace.workspaceFolders![0].uri.fsPath;
   const python = await backendPython('bundled', extension.extensionUri.fsPath);
   const client = new BackendClient(root, python, '', () => {});
+  const browser = new NativeBrowser(vscode);
+  const browserCoverage: any = { available: browser.available(), exercised: false };
   try {
     await client.connect();
     await client.request('setup');
+    const demo = await client.request('browser.demo.start');
+    assert.ok(demo.url.startsWith('http://127.0.0.1:'));
+    const demoPage = await fetch(demo.url);
+    assert.ok((await demoPage.text()).includes('Scripted demo'));
+    if (commands.includes('workbench.action.browser.open') && process.env.REPOPILOTV3_BROWSER_TEST === '1') {
+      await vscode.workspace.getConfiguration('workbench.browser').update('enableChatTools', true, vscode.ConfigurationTarget.Global);
+      await vscode.commands.executeCommand('workbench.action.browser.open', demo.url);
+      for (let attempt = 0; attempt < 20 && !browser.available(); attempt++) await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    browserCoverage.available = browser.available();
+    browserCoverage.tools = ((vscode as any).lm?.tools || []).map((t: any) => t.name).filter((name: string) => /browser|playwright/i.test(name));
+    if (browserCoverage.available && process.env.REPOPILOTV3_BROWSER_TEST === '1') {
+      // This editor profile is disposable; production code never changes permission settings.
+      await vscode.commands.executeCommand('setContext', 'vscode.chat.tools.global.autoApprove.testMode', true);
+      await vscode.workspace.getConfiguration('chat.tools').update('global.autoApprove', true, vscode.ConfigurationTarget.Global);
+      const opened = await browser.open(demo.url);
+      const pages = await browser.pages();
+      const page = pages.find(p => p.id === opened);
+      assert.ok(page, 'Native browser must list the synthetic demo page');
+      assert.equal(await browser.code(page.id, 'return await page.title();'), 'RepoPilot local demo chat');
+      await browser.code(page.id, 'await page.bringToFront(); return true;');
+      console.log('Native demo geometry: ' + JSON.stringify(await browser.evaluate(page.id, () => { const e = document.querySelector('#message')!; return { rect: e.getBoundingClientRect().toJSON(), display: getComputedStyle(e).display, visibility: getComputedStyle(e).visibility, viewport: [innerWidth, innerHeight] }; }, null)));
+      await browser.evaluate(page.id, installPicker, { token: 'native-picker', family: false });
+      await browser.code(page.id, 'return await page.evaluate(()=>{document.getElementById("message").click();return true;});');
+      const selected = await browser.evaluate<any>(page.id, () => ({ ...(window as any).__repopilotPicker, cancel: undefined }), null);
+      assert.equal(selected.selector, 'textarea[data-testid="chat-input"]');
+      assert.equal(selected.done, true);
+      const nativeSession = (await client.request('sessions.create')).session.id;
+      const initial = await client.request('prompts.starter', { session_id: nativeSession });
+      const preferences: BrowserPreferences = { enabled: true, mode: 'loop', budget: 10, url: demo.url,
+        selectors: { input: '#message', send: '#send', sent: '[data-role="user"]', reply: '[data-role="assistant"]', busy: '#stop', complete: '[data-role="assistant"][data-complete="true"]' } };
+      const relay = new BrowserRelay();
+      let next: { id: string; text: string } | undefined = { id: initial.entry_id, text: initial.copy_text };
+      const results: any[] = [];
+      const io: RelayIO = {
+        snapshot: () => browser.snapshot(page.id, preferences.selectors),
+        fill: text => browser.fill(page.id, preferences.selectors, text, demo.url), send: () => browser.send(page.id, preferences.selectors, demo.url),
+        journal: (transfer_id, phase, text) => client.request('browser.transfer', { session_id: nativeSession, transfer_id, phase, ...(text ? { text } : {}) }),
+        captured: async text => { const result = await client.request('replies.import', { session_id: nativeSession, text }); results.push(result); next = result.results?.length ? { id: result.reply_id, text: result.copy_text } : undefined; },
+        current: () => true, status: () => {}
+      };
+      try {
+        await relay.start(io, preferences);
+        for (let turn = 0; next && turn < 4; turn++) { const outgoing = next; next = undefined; await relay.transfer(io, preferences, outgoing.id, outgoing.text); }
+        assert.equal(results.length, 3);
+        assert.equal(results[0].results.length, 2);
+        assert.equal(results[1].results[0].ok, true);
+        assert.equal((await client.request('sessions.status', { session_id: nativeSession })).metrics.exchanges, 3);
+      } finally { relay.pause(); }
+      browserCoverage.exercised = true;
+      browserCoverage.picker = true;
+      browserCoverage.fullLoop = true;
+    }
+    await client.request('browser.demo.stop');
+    console.log('Native browser coverage: ' + JSON.stringify(browserCoverage));
     const status = await client.request('sessions.create');
     assert.equal(status.task, null); assert.equal(status.session.name, 'New session');
     const session = status.session.id;
@@ -131,6 +190,6 @@ export async function run(): Promise<void> {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     await deactivate();
   }
-  if (process.env.REPOPILOTV3_EDITOR_RESULT) fs.writeFileSync(process.env.REPOPILOTV3_EDITOR_RESULT, JSON.stringify({ passed: true, version: vscode.version }));
+  if (process.env.REPOPILOTV3_EDITOR_RESULT) fs.writeFileSync(process.env.REPOPILOTV3_EDITOR_RESULT, JSON.stringify({ passed: true, version: vscode.version, browser: browserCoverage }));
   console.log(`RepoPilotV3 extension-host checks passed on VS Code ${vscode.version}`);
 }

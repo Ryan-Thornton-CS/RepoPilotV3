@@ -14,7 +14,8 @@ const python = process.env.REPOPILOTV3_PYTHON || path.resolve(__dirname, '../../
 
 /** Exercise both view-to-host validation and source-link confinement. */
 test('closed messages, trust, bounded inputs and safe source paths', () => {
-  assert.ok(panelMessage({ action: 'run', text: '{}' }));
+  assert.equal(panelMessage({ action: 'run', text: '{}' }), undefined);
+  assert.ok(panelMessage({ action: 'send', text: '{}' }));
   for (const value of [null, [], { action: 'shell' }, { action: 'run' }, { action: 'run', text: '{}', shell: true },
     { action: 'source', path: 'x', line: -1 }, { action: 'draft', text: 'missing session' }]) {
     assert.equal(panelMessage(value), undefined);
@@ -80,8 +81,8 @@ test('panel paste/run/copy, safe text rendering and passive draft restoration', 
   dom.window.document.getElementById('paste').click();
   assert.equal(messages.at(-1).action, 'pasteRun');
   dom.window.document.getElementById('request').value = '{"tool":"todo"}';
-  dom.window.document.getElementById('run').click();
-  assert.equal(messages.at(-1).action, 'run');
+  dom.window.document.getElementById('send').click();
+  assert.equal(messages.at(-1).action, 'send');
   dom.window.document.querySelector('#entries button').click();
   assert.equal(messages.at(-1).action, 'copy');
   assert.equal(messages.at(-1).entryId, 'result:x');

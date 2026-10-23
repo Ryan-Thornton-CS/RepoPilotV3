@@ -51,7 +51,14 @@ const descriptions = Object.freeze({
   projectRename: 'Rename the project listing without moving its folder.',
   projectRemove: 'Remove this listing; retain folders, sessions, private state and MCP.',
   pasteRun: 'Import a model reply and execute its tool requests.',
-  run: 'Process the composer’s contents as a model response.',
+  webuiSet: 'Save a project default or per-chat address without contacting the site.',
+  webuiOpen: 'Open the saved chat address in VS Code’s browser where available.',
+  webuiCopyOpen: 'Copy the latest completed harness reply, then open the saved address; does not paste or send.',
+  browserOptions: 'Configure the optional experimental element picker and browser relay.',
+  browserStart: 'Explicitly arm the configured experimental relay for this chat.',
+  browserPause: 'Stop automatic transfers and observation; effects already sent are not undone.',
+  browserImport: 'Review and run the captured model reply through the normal tool parser.',
+  stateOrganize: 'Upgrade private file organization offline, retaining history and recovery copies.',
   note: 'Record a note without executing tools.',
   stop: 'Cancel a running command.',
   copy: 'Copy this entire turn, including its tool results, errors and continuation guidance.',
@@ -470,21 +477,99 @@ byId('project-select').addEventListener('change', () => {
   saveDraft(); send('projectSelect', { projectId: byId('project-select').value });
 });
 let helpTopics = [];
-/** Render trusted bundled help through text nodes, never Markdown HTML or source markup. */
-function help() {
-  const query = byId('help-search').value.toLowerCase();
-  const container = byId('help-topics'); container.replaceChildren();
-  for (const topic of helpTopics.filter(t => (t.title + ' ' + t.text).toLowerCase().includes(query))) {
-    const article = node('article', undefined, 'help-topic');
-    article.append(node('h2', topic.title), formatted(topic.text));
-    if (topic.image) {
-      const image = node('img'); image.src = topic.image; image.alt = topic.alt || topic.title; image.loading = 'lazy'; article.append(image);
+let helpMatches = [], helpMatch = -1;
+/** Highlight literal query matches using DOM nodes; search text never becomes HTML. */
+function highlightHelp(article, query) {
+  if (!query) return;
+  const walker = document.createTreeWalker(article, window.NodeFilter.SHOW_TEXT);
+  const texts = []; while (walker.nextNode()) texts.push(walker.currentNode);
+  for (const text of texts) {
+    const value = text.nodeValue, lower = value.toLowerCase(); let offset = 0, found = lower.indexOf(query);
+    if (found < 0) continue;
+    const fragment = document.createDocumentFragment();
+    while (found >= 0) {
+      fragment.append(document.createTextNode(value.slice(offset, found)));
+      const mark = node('mark', value.slice(found, found + query.length)); fragment.append(mark); helpMatches.push(mark);
+      offset = found + query.length; found = lower.indexOf(query, offset);
     }
-    container.append(article);
+    fragment.append(document.createTextNode(value.slice(offset))); text.replaceWith(fragment);
+  }
+}
+/** Move focus through visible results and announce the active match. */
+function nextHelpMatch(direction) {
+  if (!helpMatches.length) return;
+  if (helpMatch >= 0) helpMatches[helpMatch].classList.remove('current-match');
+  helpMatch = (helpMatch + direction + helpMatches.length) % helpMatches.length;
+  const mark = helpMatches[helpMatch]; mark.classList.add('current-match');
+  mark.scrollIntoView?.({ block: 'center' });
+  byId('help-matches').textContent = `${helpMatch + 1} / ${helpMatches.length} matches`;
+}
+/** Enlarge a bundled image inside an accessible, Escape-dismissible dialog. */
+function enlargeHelpImage(image, opener) {
+  const dialog = node('dialog', undefined, 'help-lightbox');
+  const close = node('button', 'Close image');
+  const picture = node('img'); picture.src = image.src; picture.alt = image.alt;
+  dialog.setAttribute('aria-label', image.alt); dialog.append(close, picture); document.body.append(dialog);
+  const dismiss = () => { dialog.remove(); opener.focus(); };
+  close.addEventListener('click', dismiss);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
+  dialog.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); dismiss(); } });
+  if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
+  close.focus();
+}
+/** Render grouped navigation and safe highlighted content from bundled structured help. */
+function help() {
+  const query = byId('help-search').value.trim().toLowerCase();
+  const topics = helpTopics.map((t, i) => ({ ...t, id: t.id || `topic-${i}` })).filter(t => (t.title + ' ' + t.text + ' ' + (t.callouts || []).map(c => c.label).join(' ')).toLowerCase().includes(query));
+  const contents = byId('help-contents'); contents.replaceChildren();
+  const container = byId('help-topics'); container.replaceChildren();
+  helpMatches = []; helpMatch = -1;
+  const selected = topics.some(t => t.id === saved.helpTopic) ? saved.helpTopic : topics[0]?.id;
+  const groups = [...new Set(topics.map(t => t.group || 'Help'))];
+  for (const group of groups) {
+    const section = node('details'); section.open = !!query || group === topics.find(t => t.id === selected)?.group || group === 'Help';
+    section.append(node('summary', group));
+    for (const topic of topics.filter(t => (t.group || 'Help') === group)) {
+      const select = node('button', topic.title); select.setAttribute('aria-current', String(topic.id === selected));
+      select.addEventListener('click', () => { saved.helpTopic = topic.id; vscode.setState(saved); byId('help-search').value = ''; help(); }); section.append(select);
+    }
+    contents.append(section);
+  }
+  for (const topic of query ? topics : topics.filter(t => t.id === selected)) {
+    const article = node('article', undefined, 'help-topic'); article.dataset.topic = topic.id;
+    article.append(node('h2', topic.title), formatted(topic.text));
+    if (topic.callouts?.length) {
+      const legend = node('ol', undefined, 'help-callouts');
+      for (const callout of topic.callouts) {
+        const item = node('li'), badge = node('span', String(callout.number), 'help-callout-number');
+        if (/^#[a-f0-9]{6}$/i.test(callout.color)) badge.style.backgroundColor = callout.color;
+        item.append(badge, document.createTextNode(' ' + callout.label)); legend.append(item);
+      }
+      article.append(legend);
+    }
+    if (topic.image) {
+      const image = node('img'); image.src = topic.image; image.alt = topic.alt || topic.title; image.loading = 'lazy';
+      const enlarge = node('button', undefined, 'help-image'); enlarge.setAttribute('aria-label', 'Enlarge: ' + image.alt); enlarge.append(image);
+      enlarge.addEventListener('click', () => enlargeHelpImage(image, enlarge)); article.append(enlarge);
+    }
+    highlightHelp(article, query); container.append(article);
   }
   if (!container.childNodes.length) container.append(node('p', 'No matching help topics.'));
+  if (!query && selected) {
+    const index = topics.findIndex(t => t.id === selected), navigation = node('nav', undefined, 'help-pagination'); navigation.setAttribute('aria-label', 'Help topic navigation');
+    for (const [label, target] of [['Previous topic', topics[index - 1]], ['Next topic', topics[index + 1]]]) {
+      const control = node('button', label); control.disabled = !target;
+      control.addEventListener('click', () => { saved.helpTopic = target.id; vscode.setState(saved); help(); container.scrollTop = 0; }); navigation.append(control);
+    }
+    container.append(navigation);
+  }
+  byId('help-matches').textContent = query ? `${helpMatches.length} matches in ${topics.length} topics` : 'Select a topic or search help';
+  byId('help-previous-match').disabled = byId('help-next-match').disabled = !helpMatches.length;
 }
 byId('help-search').addEventListener('input', help);
+byId('help-previous-match').addEventListener('click', () => nextHelpMatch(-1));
+byId('help-next-match').addEventListener('click', () => nextHelpMatch(1));
+byId('help-search').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); nextHelpMatch(event.shiftKey ? -1 : 1); } });
 
 byId('sessions-toggle').addEventListener('click', () => toggle('session-drawer', 'sessions-toggle'));
 byId('options-toggle').addEventListener('click', () => toggle('options', 'options-toggle'));
@@ -499,7 +584,7 @@ document.querySelectorAll('[data-action]').forEach(element => {
   if (descriptions[element.dataset.action]) describe(element, descriptions[element.dataset.action]);
   element.addEventListener('click', () => {
   const action = element.dataset.action; saveDraft();
-  send(action, action === 'roleCopy' ? { text: element.dataset.role } : ['run', 'send', 'forward', 'note'].includes(action) ? { text: byId('request').value } : {});
+  send(action, action === 'roleCopy' ? { text: element.dataset.role } : ['send', 'forward', 'note'].includes(action) ? { text: byId('request').value } : {});
   if (action !== 'stop') closeMenus();
   });
 });
@@ -515,7 +600,7 @@ for (const [id, text] of Object.entries({
   'archived': 'Display archived sessions so you can restore or delete them.',
   'full': 'Include Markdown exports of all eligible source files.',
   'older': descriptions.history,
-  'composer-menu': 'Run the composer as a model reply or save a local note.',
+  'composer-menu': 'Forward a message without executing examples, or save a local note.',
   'todo-toggle': 'Expand the current task checklist.',
   'context-meter': 'Show recorded token estimates; click to adjust the advisory threshold.'
 })) describe(byId(id), text);
@@ -527,8 +612,8 @@ byId('request').addEventListener('input', () => { resizeComposer(); clearTimeout
 window.addEventListener('resize', resizeComposer);
 if (document.fonts) void document.fonts.ready.then(resizeComposer);
 byId('request').addEventListener('keydown', event => {
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-    event.preventDefault(); saveDraft(); send(event.shiftKey ? 'run' : 'send', { text: byId('request').value });
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === 'Enter') {
+    event.preventDefault(); saveDraft(); send('send', { text: byId('request').value });
   }
 });
 function search() { send('search', { text: byId('search').value, value: byId('archived').checked }); }
@@ -536,6 +621,8 @@ byId('search').addEventListener('input', () => { clearTimeout(searchTimer); sear
 byId('archived').addEventListener('change', search);
 window.addEventListener('message', event => {
   const message = event.data;
+  if (message.type === 'browserStatus') { byId('browser-status').hidden = !!message.hidden; byId('browser-status-text').textContent = message.text; }
+  if (message.type === 'browserCapture') { byId('browser-capture').hidden = !message.text; byId('browser-capture-text').textContent = message.text || ''; }
   if (message.type === 'documentation') { helpTopics = message.topics; help(); }
   if (message.type === 'projects') {
     const select = byId('project-select'); select.replaceChildren();

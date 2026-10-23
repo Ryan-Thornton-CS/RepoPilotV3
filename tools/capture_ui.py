@@ -40,22 +40,22 @@ class PanelCapture:
                         raise RuntimeError(result["error"])
                     return result["result"]
 
-    async def annotate(self, selectors: list[str], drawer: bool) -> None:
-        """Add numbered red outlines without modifying source files or execution behavior."""
+    async def annotate(self, callouts: list[dict], drawer: bool) -> None:
+        """Add shared colored, numbered outlines without modifying source files or execution behavior."""
         script = """(() => {
           const d=document.querySelector('iframe').contentDocument;
           for (const old of d.querySelectorAll('.documentation-callout')) old.remove();
           d.getElementById('session-drawer').hidden=DRAWER;
           const transcript=d.getElementById('transcript'); transcript.scrollTop=transcript.scrollHeight;
-          SELECTORS.forEach((selector,index)=>{
-            const target=d.querySelector(selector), r=target.getBoundingClientRect();
+          CALLOUTS.forEach((callout,index)=>{
+            const target=d.querySelector(callout.selector), r=target.getBoundingClientRect();
             const outline=d.createElement('div'); outline.className='documentation-callout';
-            Object.assign(outline.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',border:'2px solid #ff4545',boxSizing:'border-box',pointerEvents:'none',zIndex:'10000'});
-            const number=d.createElement('span'); number.textContent=String(index+1);
-            Object.assign(number.style,{position:'absolute',right:'0',top:'0',background:'#b80000',color:'#fff',font:'bold 12px sans-serif',padding:'1px 4px'});
+            Object.assign(outline.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',border:'2px solid '+callout.color,boxSizing:'border-box',pointerEvents:'none',zIndex:'10000'});
+            const number=d.createElement('span'); number.textContent=String(callout.number);
+            Object.assign(number.style,{position:'absolute',right:'0',top:'0',background:callout.color,color:callout.ink,font:'bold 12px sans-serif',padding:'1px 4px'});
             outline.append(number);d.body.append(outline);
           }); return true;
-        })()""".replace("SELECTORS", json.dumps(selectors)).replace("DRAWER", "false" if drawer else "true")
+        })()""".replace("CALLOUTS", json.dumps(callouts)).replace("DRAWER", "false" if drawer else "true")
         await self.call(self.frame, "Runtime.evaluate", {"expression": script, "returnByValue": True})
 
     async def save(self, target: Path) -> None:
@@ -122,12 +122,13 @@ class PanelCapture:
     async def capture(self, root: Path) -> None:
         """Produce updated help figures and verify the actual synthetic panel before saving."""
         await self.validate_panel(root)
-        await self.annotate(["#top-tabs", ".project-bar", "#project-tabs", "header", "#session-drawer"], True)
+        callouts = json.loads((root / "docs/callouts.json").read_text("utf-8"))
+        await self.annotate(callouts["projects-guide"], True)
         await self.save(root / "docs/images/projects-guide.png")
-        await self.annotate(["#request", "#send", "#paste", "#todo-toggle", "#update-context", ".message-bar"], False)
+        await self.annotate(callouts["chat-guide"], False)
         await self.save(root / "docs/images/chat-guide.png")
         await self.call(self.frame, "Runtime.evaluate", {"expression": "document.querySelector('iframe').contentDocument.getElementById('options-toggle').click()"})
-        await self.annotate(["#options-toggle", "#options"], False)
+        await self.annotate(callouts["settings-guide"], False)
         await self.save(root / "docs/images/settings-guide.png")
 
 

@@ -16,6 +16,434 @@
           ]
         },
         "method": {
+          "const": "state.status"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.pending"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "session_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.notice"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "session_id",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.demo.start"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.demo.stop"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.demo.status"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.settings"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "settings": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "mode": {
+                  "enum": [
+                    "fill",
+                    "capture",
+                    "loop"
+                  ]
+                },
+                "budget": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "selectors": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "send": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "reply": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "sent": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "busy": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "complete": {
+                      "type": "string",
+                      "maxLength": 2000
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
+          "const": "browser.transfer"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "workspace": {
+              "type": "string"
+            },
+            "bridge_version": {
+              "const": "1.0"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "transfer_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            },
+            "phase": {
+              "enum": [
+                "inspect",
+                "fill_pending",
+                "filled",
+                "send_pending",
+                "sent",
+                "captured",
+                "imported",
+                "paused"
+              ]
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2500000
+            }
+          },
+          "required": [
+            "workspace",
+            "bridge_version",
+            "session_id",
+            "transfer_id",
+            "phase"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "method": {
           "const": "harness.preview"
         },
         "params": {

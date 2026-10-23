@@ -103,3 +103,26 @@ body.vscode-high-contrast button.primary, body.vscode-high-contrast-light button
 #context-meter:disabled { opacity: .55; cursor: default; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (forced-colors: active) { #context-meter { color: ButtonText; } .context-track { stroke: GrayText; } }
+
+/* Structured help keeps navigation separate from its scrolling articles. */
+#help-contents { flex: none; max-height: 24vh; overflow-y: auto; padding: 4px 8px; border-bottom: 1px solid var(--vscode-panel-border); }
+#help-contents summary { padding: 5px; font-weight: 600; cursor: pointer; }
+#help-contents button { display: block; width: 100%; text-align: left; }
+#help-contents button[aria-current="true"] { color: var(--vscode-textLink-foreground); border-left: 3px solid currentColor; }
+.help-match-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 8px; flex: none; background: var(--vscode-sideBar-background); }
+.help-match-controls span { flex: 1; min-width: 100px; }
+.help-topic mark { background: var(--vscode-editor-findMatchHighlightBackground, #ffe08a); color: var(--vscode-editor-foreground, #111); outline: 1px solid var(--vscode-editor-findMatchHighlightBorder, #b78400); }
+.help-topic mark.current-match { outline: 2px solid var(--vscode-focusBorder, #58a6ff); }
+.help-callouts { padding: 0; list-style: none; }
+.help-callouts li { display: flex; align-items: baseline; gap: 6px; margin: 9px 0; }
+.help-callout-number { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; border-radius: 5px; color: #fff; font-weight: bold; }
+.help-pagination { display: flex; justify-content: space-between; gap: 8px; padding: 12px 0; }
+.help-image { padding: 0; width: 100%; cursor: zoom-in; }
+.help-lightbox { position: fixed; inset: 10px; max-width: calc(100vw - 20px); max-height: calc(100vh - 20px); padding: 10px; color: var(--vscode-foreground); background: var(--vscode-editor-background); border: 2px solid var(--vscode-focusBorder); }
+.help-lightbox::backdrop { background: #0009; }
+.help-lightbox img { display: block; max-width: 100%; max-height: 80vh; object-fit: contain; }
+#browser-status { border-top: 1px solid var(--vscode-panel-border); padding: 4px; font-size: 12px; }
+#browser-status-text { overflow-wrap: anywhere; }
+#browser-capture { max-height: 26vh; overflow: auto; padding: 6px; border: 1px solid var(--vscode-focusBorder); }
+#browser-capture pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+@media (forced-colors: active) { .help-callout-number { border: 2px solid CanvasText; color: Canvas; background: CanvasText !important; } .help-topic mark { color: HighlightText; background: Highlight; } }

@@ -103,12 +103,14 @@ jobs:
         working-directory: extension
         env:
           VSCODE_TEST_VERSION: ${{ matrix.editor }}
+          REPOPILOTV3_BROWSER_TEST: ${{ matrix.editor == 'stable' && '1' || '0' }}
       - name: Editor checks (Windows)
         if: runner.os == 'Windows'
         run: npm run test:editor
         working-directory: extension
         env:
           VSCODE_TEST_VERSION: ${{ matrix.editor }}
+          REPOPILOTV3_BROWSER_TEST: ${{ matrix.editor == 'stable' && '1' || '0' }}
       - name: Preserve editor failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

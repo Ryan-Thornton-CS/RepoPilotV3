@@ -142,3 +142,12 @@ These are annotated captures of the actual extension using synthetic source and 
 The **Settings** menu is anchored below its cogwheel. Press **Escape** to close any custom menu (including the session drawer, composer actions, TODO and upload checklist); focus returns to its opening control. Clicking outside closes menus too. Escape does not stop commands or send messages.
 
 The circular **context indicator** fills against the selected chat’s configured advisory limit. Hover or focus it to see **Context window: % full** and **used/limit tokens used**. These are locally recorded estimates, not measured WebUI usage. Clicking the circle changes the limit. At/above the limit the ring stays full while hover text shows the actual percentage, including values over 100%.
+
+
+## Find a control in help
+
+Open **Documentation** and select Quick start, Daily workflow or Reference. Colored numbered badges match the screenshot callouts. Click an image to enlarge it; Escape closes it. Search highlights matching words, and Previous/Next match jumps between them. Clearing the search restores topic browsing.
+
+## Optional local browser demo
+
+The normal loop above remains the default. To try the experiment without a provider, follow the short [local demo walkthrough](browser-relay.md#local-demo). The demo uses the same protocol parser and approvals as normal sessions, but only requests a task, TODO and repository search. Its responses are scripted; it does not demonstrate model quality or provider compatibility.

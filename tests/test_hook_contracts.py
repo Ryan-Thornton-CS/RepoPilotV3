@@ -91,9 +91,9 @@ def test_missing_error_and_checkpoint_binding_report_partial_coverage(ws):
     adapter = HookAdapter(ws)
     base = {"sessionId": "A", "toolName": "bash", "timestamp": 1}
     assert adapter.handle("postToolUseFailure", base) == {}
-    assert "missing error" in load_json(ws.state / "hook-health.json")["reason"]
+    assert "missing error" in load_json(ws.paths.runtime("hook-health.json"))["reason"]
     assert adapter.handle("postToolUseFailure", {**base, "error": "failed"}) == {}
-    assert "no observed" in load_json(ws.state / "hook-health.json")["reason"]
+    assert "no observed" in load_json(ws.paths.runtime("hook-health.json"))["reason"]
 
 
 def test_successful_operations_cannot_count_as_repeated_failures(ws):

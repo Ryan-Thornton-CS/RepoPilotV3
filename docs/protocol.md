@@ -143,3 +143,16 @@ Management RPC adds `harness.preview` (optional repository_root, repository_stat
 `todo.reset(session_id,expected_revision)` is a local, confirmed administrative operation. It archives checklist items, retains validation/requirements, invalidates readiness across chats sharing the task and returns a copy-ready recovery message. Concurrent task changes produce `stale_task`; changed prompts produce `stale_prompt`. Neither reset is model-callable.
 
 Legacy saved mode fields and CLI configuration arguments remain readable, but no longer affect starters, outgoing prompts or handoffs. Role prompts copy their exact file contents and change no session state or permissions. Project-list persistence belongs to the extension and uses stable folder identifiers; backend operations remain root/session-bound.
+
+
+## Browser and layout management
+
+These are trusted local management methods, never model-callable tools:
+
+- `browser.settings`: read/save project defaults or session URL/relay preferences. `settings` accepts `url`, `enabled`, `mode` (`fill`, `capture`, `loop`), `budget` (1–100), and selected CSS mappings. Saving/restoring does not contact a site or arm automation.
+- `browser.transfer`: journal an explicit transfer by session and transfer ID; `inspect` reads prior state. Filled/pending content is not counted as a remote transfer. An acknowledged `sent` event shares the existing text fingerprint so an earlier copy is not counted again.
+- `browser.pending`, `browser.notice`: restore captured replies and save local relay status. Imports remain `replies.import`; failures/approvals retain their existing semantics.
+- `browser.demo.start`, `.status`, `.stop`: explicitly own the local scripted fixture and its lifecycle.
+- `state.status`: report legacy/organized paths and interrupted migration. Upgrade uses the offline `state organize --confirm-stopped` CLI after clients stop.
+
+All methods retain bridge 1.0 workspace ownership and closed argument schemas. Model protocol 1.0 and MCP capabilities are unchanged.

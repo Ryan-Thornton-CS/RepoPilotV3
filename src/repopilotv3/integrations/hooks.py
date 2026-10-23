@@ -65,7 +65,7 @@ class HookAdapter:
             return {}
         if event not in {"postToolUse", "postToolUseFailure"}:
             if event == "agentStop":
-                atomic_json(self.ws.state / "last-stop.json", {"at": now(), "session": digest(session)})
+                atomic_json(self.ws.paths.runtime("last-stop.json"), {"at": now(), "session": digest(session)})
             return {}
         tool = payload.get("toolName", payload.get("tool_name", "unknown"))
         if not isinstance(tool, str) or len(tool) > 256:
@@ -79,7 +79,7 @@ class HookAdapter:
         if failure:
             error = payload.get("error")
             if not isinstance(error, str) or not error.strip():
-                atomic_json(self.ws.state / "hook-health.json", {
+                atomic_json(self.ws.paths.runtime("hook-health.json"), {
                     "coverage": "partial", "reason": "failure event missing error text", "at": now(),
                 })
                 return {}
@@ -101,7 +101,7 @@ class HookAdapter:
                 return {}
         run_id = self.monitor.bound(session)
         if not run_id:
-            atomic_json(self.ws.state / "hook-health.json", {
+            atomic_json(self.ws.paths.runtime("hook-health.json"), {
                 "coverage": "partial", "reason": "no observed task checkpoint binding", "at": now(),
             })
             return {}
@@ -111,7 +111,7 @@ class HookAdapter:
         stamp = payload.get("timestamp")
         if correlation is None and stamp is None:
             atomic_json(
-                self.ws.state / "hook-health.json",
+                self.ws.paths.runtime("hook-health.json"),
                 {"coverage": "partial", "reason": "ambiguous correlation", "at": now()},
             )
             return {}
@@ -161,7 +161,7 @@ def main(argv=None) -> int:
         if ws.config_path.exists() and getattr(exc, "code", "") not in {"wrong_owner", "wrong_repository"}:
             try:
                 atomic_json(
-                    ws.state / "hook-health.json",
+                    ws.paths.runtime("hook-health.json"),
                     {"coverage": "degraded", "at": now(), "event": args.event, "error": type(exc).__name__},
                 )
             except OSError:

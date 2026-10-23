@@ -1,0 +1,99 @@
+{
+  "projects-guide": [
+    {
+      "number": 1,
+      "label": "Projects / Documentation",
+      "selector": "#top-tabs",
+      "color": "#0072B2",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 2,
+      "label": "Project selector and actions",
+      "selector": ".project-bar",
+      "color": "#9C4F00",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 3,
+      "label": "Sessions / Context files",
+      "selector": "#project-tabs",
+      "color": "#007A63",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 4,
+      "label": "Current session and settings",
+      "selector": "header",
+      "color": "#8B44B3",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 5,
+      "label": "Saved sessions and search",
+      "selector": "#session-drawer",
+      "color": "#B33457",
+      "ink": "#FFFFFF"
+    }
+  ],
+  "chat-guide": [
+    {
+      "number": 1,
+      "label": "Message composer",
+      "selector": "#request",
+      "color": "#0072B2",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 2,
+      "label": "Send: detect requests or prepare prose",
+      "selector": "#send",
+      "color": "#9C4F00",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 3,
+      "label": "Paste + Run: import the model reply",
+      "selector": "#paste",
+      "color": "#007A63",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 4,
+      "label": "Task checklist",
+      "selector": "#todo-toggle",
+      "color": "#8B44B3",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 5,
+      "label": "Automatically maintained context files",
+      "selector": "#update-context",
+      "color": "#B33457",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 6,
+      "label": "Chat, prompts and execution",
+      "selector": ".message-bar",
+      "color": "#526778",
+      "ink": "#FFFFFF"
+    }
+  ],
+  "settings-guide": [
+    {
+      "number": 1,
+      "label": "Project and maintenance settings",
+      "selector": "#options-toggle",
+      "color": "#0072B2",
+      "ink": "#FFFFFF"
+    },
+    {
+      "number": 2,
+      "label": "Grouped settings menu",
+      "selector": "#options",
+      "color": "#9C4F00",
+      "ink": "#FFFFFF"
+    }
+  ]
+}

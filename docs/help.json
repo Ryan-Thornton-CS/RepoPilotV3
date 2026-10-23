@@ -1,48 +1,95 @@
 [
   {
     "title": "Quick start",
-    "text": "Add a project folder, then create a session. Copy project instructions into the external WebUI project once. Paste the session starter into a new chat. The WebUI model registers its task and TODO. RepoPilot runs local tools; no model is connected."
+    "text": "1. Add your source folder as a project. Each project keeps its own sessions and settings.\n2. Open Prompts → Copy project prompt. Paste this into your online WebUI project instructions.\n3. Choose Context files, upload the required files, then confirm only completed transfers. Local files refresh automatically; the website does not.\n4. Create New session and paste its starter into a fresh online chat. The model names the chat and calls task/todo.\n5. Copy the model reply and choose Paste + Run, or paste tool requests into the composer and press Send. Copy RepoPilot’s completed response back to the model.\n6. Review proposed diffs and approve changes locally. Grant command permission only when needed.\n7. Upload replacements when Context files shows changed artifacts. At the advisory context threshold, use Continue in new chat.\n\nUse the contents below to find each control. All normal work remains copy/paste; no model is connected to RepoPilot.",
+    "id": "quick-start",
+    "group": "Quick start"
   },
   {
     "title": "Projects and sessions",
-    "text": "Each project binds a folder to its sessions, private state and context packages. Use the project selector and Add project. Its adjacent menu offers Rename and Remove project; removal preserves folders, state, sessions and MCP registrations. Finish or stop running work before switching/removing projects. Archive/delete chats in the session drawer or Chat menu.\n\nPicture: 1 Projects/Documentation; 2 project selector, Add and project actions; 3 Sessions/Context files; 4 chat header; 5 saved sessions with a fixed search header.",
+    "text": "Each project binds a folder to its sessions, private state and context packages. Use the project selector and Add project. Its adjacent menu offers Rename and Remove project; removal preserves folders, state, sessions and MCP registrations. Finish or stop running work before switching/removing projects. Archive/delete chats in the session drawer or Chat menu.",
     "image": "images/projects-guide.png",
-    "alt": "Numbered project navigation and session controls using synthetic content."
+    "alt": "Numbered project navigation and session controls using synthetic content.",
+    "id": "projects",
+    "group": "Daily workflow",
+    "callout_key": "projects-guide"
   },
   {
     "title": "Menus and keyboard shortcuts",
     "text": "Chat, Prompts, Execution, TODO and Context files sit beside the composer. Their menus open upward. Settings holds Projects, Copilot & MCP and Maintenance, opening below its cogwheel. Escape closes all menus/drawers and restores opener focus. Clicking outside also closes menus. Search headers stay fixed above their scrolling results. Escape never submits a message or stops a command.",
     "image": "images/settings-guide.png",
-    "alt": "Settings anchored below the cogwheel, with the menu and opening button outlined in red."
+    "alt": "Settings anchored below the cogwheel, with the menu and opening button identified by colored numbered callouts.",
+    "id": "menus",
+    "group": "Daily workflow",
+    "callout_key": "settings-guide"
   },
   {
     "title": "Send, Paste + Run and copying",
-    "text": "Send detects plain or fenced protocol requests and executes them through the same parser as Paste + Run. Ordinary prose is prepared for the WebUI. Malformed requests return correction errors. Run as model reply imports textbox content explicitly. Copy message for WebUI forwards JSON examples without execution. Paste + Run reads the clipboard. Each turn has one Copy button. Background refresh and restoring a chat never copy or execute anything.\n\nPicture: 1 text box; 2 Send; 3 Paste + Run; 4 TODO; 5 automatic context checklist (estimate alongside); 6 Chat, Prompts and Execution menus.",
+    "text": "Send detects plain or fenced protocol requests and executes them through the same parser as Paste + Run. Ordinary prose is prepared for the WebUI. Malformed requests return correction errors. Copy message for WebUI forwards JSON examples without execution. Paste + Run reads the clipboard. Each turn has one Copy button. Background refresh and restoring a chat never copy or execute anything.",
     "image": "images/chat-guide.png",
-    "alt": "Numbered composer, copy, TODO and context controls using synthetic content."
+    "alt": "Numbered composer, copy, TODO and context controls using synthetic content.",
+    "id": "composer",
+    "group": "Daily workflow",
+    "callout_key": "chat-guide"
   },
   {
     "title": "Editable role prompts",
-    "text": "Prompts beside the composer offers Copy Planning/Asking/Implementation/Review prompt and Copy project prompt. These copy exact saved guidance without changing permissions or session modes. Edit prompts opens project-owned Markdown; save before copying. Reset requires confirmation and preserves a recovery copy. Upgrades keep authored files. Project instructions are available before creating a chat."
+    "text": "Prompts beside the composer offers Copy Planning/Asking/Implementation/Review prompt and Copy project prompt. These copy exact saved guidance without changing permissions or session modes. Edit prompts opens project-owned Markdown; save before copying. Reset requires confirmation and preserves a recovery copy. Upgrades keep authored files. Project instructions are available before creating a chat.",
+    "id": "prompts",
+    "group": "Daily workflow"
   },
   {
     "title": "Task and TODO",
-    "text": "The model calls task to register/resume the objective, then todo to initialize its checklist. Progress remains model-reported unless backed by local evidence. TODO → Reset checklist confirms and archives old items, retaining requirements, decisions and validation. Chats sharing the task must initialize TODO again. Execution → Recovery checkpoint saves local progress when the model is unavailable."
+    "text": "The model calls task to register/resume the objective, then todo to initialize its checklist. Progress remains model-reported unless backed by local evidence. TODO → Reset checklist confirms and archives old items, retaining requirements, decisions and validation. Chats sharing the task must initialize TODO again. Execution → Recovery checkpoint saves local progress when the model is unavailable.",
+    "id": "todo",
+    "group": "Daily workflow"
   },
   {
     "title": "Commands and patch approvals",
-    "text": "Execution chooses the approved validation profile and manages the local command grant. Stop cancels a running command. Native diff tabs open automatically for proposed files; approve or decline the whole proposal. Approval runs the already-selected validation profile. Dirty source editors need saving. Validation records actual results; later source changes make evidence historical."
+    "text": "Execution chooses the approved validation profile and manages the local command grant. Stop cancels a running command. Native diff tabs open automatically for proposed files; approve or decline the whole proposal. Approval runs the already-selected validation profile. Dirty source editors need saving. Validation records actual results; later source changes make evidence historical.",
+    "id": "execution",
+    "group": "Daily workflow"
   },
   {
     "title": "Context files and transfers",
-    "text": "Context files beside the composer opens the automatically maintained upload checklist. UPLOAD means unconfirmed, REPLACE means changed and KEEP means a confirmed transfer remains valid. Open folder, copy instructions and confirm completed transfers here. Package settings chooses external scope and optional full source. Refreshes coalesce, defer while busy and retry automatically; failures show Retry refresh. The project Context files tab also opens individual artifacts. Local generation/copying never updates the external WebUI or confirms uploads."
+    "text": "Context files beside the composer opens the automatically maintained upload checklist. UPLOAD means unconfirmed, REPLACE means changed and KEEP means a confirmed transfer remains valid. Open folder, copy instructions and confirm completed transfers here. Package settings chooses external scope and optional full source. Refreshes coalesce, defer while busy and retry automatically; failures show Retry refresh. The project Context files tab also opens individual artifacts. Local generation/copying never updates the external WebUI or confirms uploads.",
+    "id": "context",
+    "group": "Daily workflow"
   },
   {
     "title": "Context estimates and continuation",
-    "text": "The ring shows recorded estimated tokens against the advisory limit. Hover/focus for percentage and token counts; click to change the limit. Remote model capacity is unknown. At the threshold, RepoPilot prepares a handoff and shows Continue in new chat. Open the external chat and confirm; the replacement opens with its handoff first. It retains the task but has a distinct chat identifier, initial TODO requirement and fresh command grant. Chat → Generate handoff is available earlier. Nothing forces a rollover."
+    "text": "The ring shows recorded estimated tokens against the advisory limit. Hover/focus for percentage and token counts; click to change the limit. Remote model capacity is unknown. At the threshold, RepoPilot prepares a handoff and shows Continue in new chat. Open the external chat and confirm; the replacement opens with its handoff first. It retains the task but has a distinct chat identifier, initial TODO requirement and fresh command grant. Chat → Generate handoff is available earlier. Nothing forces a rollover.",
+    "id": "continuation",
+    "group": "Daily workflow"
   },
   {
     "title": "Copilot, MCP and troubleshooting",
-    "text": "Options → Copilot & MCP enables a project-bound MCP registration or previews workspace harness generation. Native Copilot tools handle editing and execution; RepoPilot MCP provides compact repository retrieval and checkpoints. Missing MCP APIs are reported separately from panel support. Use Maintenance → Diagnostics or Reconnect backend after inspecting interrupted work. Recovery never automatically replays edits or commands."
+    "text": "Options → Copilot & MCP enables a project-bound MCP registration or previews workspace harness generation. Native Copilot tools handle editing and execution; RepoPilot MCP provides compact repository retrieval and checkpoints. Missing MCP APIs are reported separately from panel support. Use Maintenance → Diagnostics or Reconnect backend after inspecting interrupted work. Recovery never automatically replays edits or commands.",
+    "id": "integrations",
+    "group": "Reference"
+  },
+  {
+    "id": "browser",
+    "group": "Daily workflow",
+    "title": "Opening your WebUI chat",
+    "text": "Chat → Set WebUI address saves an HTTP/HTTPS address as a project default or session override. Saving never contacts the site. Chat → Open WebUI opens that address in the integrated browser if available, otherwise your external browser. Chat → Copy latest reply + Open WebUI copies the latest completed harness response and opens the address. It does not paste or send. Private hostnames are supported; use your normal login."
+  },
+  {
+    "id": "relay",
+    "group": "Reference",
+    "title": "Experimental browser relay",
+    "text": "Off by default. Open Chat → Experimental browser relay to enable it and choose exactly one mode. Fill the message only fills the message box; you send and import. Send and capture also sends and captures the completed reply; you review it and choose Import + Run. Full tool loop also processes requests, pausing for local approvals, errors or human input.\n\nOpen controllable chat tab creates a native-tool-owned integrated tab; sign in there if ordinary tabs are inaccessible. Select chat controls chooses an accessible integrated-browser tab. Pick the message input, Send button, a user-message bubble and a model-message bubble; Escape cancels. Bubble selectors must match every message of that role. Send/capture requires a generation or completion indicator. A text pause is not proof the model has finished. The current picker supports the main document; embedded-frame chats need manual copy/paste.\n\nClick Start explicitly. Reloading, switching sessions or reconnecting does not resume automation. Pause stops observation; it cannot undo a click already sent. Command grants and whole-patch approvals remain required. Ten automatic model turns per Start is the default budget. If delivery is uncertain, inspect the online chat before sending anything again.\n\nNative Browser tools must be available and permitted by your editor. RepoPilot invokes fixed tool operations without another model. Older editors retain the ordinary panel and manual workflow. There is no automatic browser/runtime installation or context-file upload."
+  },
+  {
+    "id": "demo",
+    "group": "Quick start",
+    "title": "Try the local demo chat",
+    "text": "1. Use a synthetic repository (examples/create_demo.py) for an isolated walkthrough.\n2. Choose Chat → Experimental browser relay → Open local demo chat. A tiny Python server opens an ephemeral port on 127.0.0.1 only. No model or provider is contacted.\n3. Enable the experiment, then Select chat controls. Select the textarea, Send button, example user bubble and example model bubble. The demo’s data-complete attribute supplies its completion mapping; skip the busy control.\n4. Choose Fill the message only, then Start. Inspect the filled starter and send it yourself.\n5. Pause, clear any draft, then try Send and capture or Full tool loop in a fresh local session. The scripted replies register a task/TODO, search once and finish. No patches or commands are requested.\n6. Use Stop generating to simulate an interrupted reply. It remains incomplete and must not be auto-imported. Reset demo clears browser memory and generates new request IDs; it does not reset RepoPilot history.\n7. Stop local demo when finished. Closing/reconnecting the backend also stops the server. Viewing the demo externally is possible, but relay testing requires compatible native browser tools."
+  },
+  {
+    "id": "state",
+    "group": "Reference",
+    "title": "Private files and state organization",
+    "text": "Each project uses .repopilotv3/ (or your configured external private directory). New state has config.json at its root; databases/ contains SQLite stores and sidecars, locks/ contains writer/session leases, runtime/ contains hook markers, browser/ contains mappings, and recovery/ retains migration backups. Tasks, exports, commands, patches, validation and prompts retain their own folders.\n\nExisting layouts remain supported. Maintenance → Organize private state stops this panel’s backend after confirmation. Stop other RepoPilot panels, MCP servers and hooks first. The offline CLI alternative is repopilotv3 --repo PATH state organize --confirm-stopped. Interrupted migration is recoverable with the same command. Older backends must be updated before reopening organized state.\n\nNever manually move live databases or delete active lock files. Unrelated home files such as .python_history, .wget-hsts and manually created .mcp.json backups are not RepoPilot runtime output."
   }
 ]

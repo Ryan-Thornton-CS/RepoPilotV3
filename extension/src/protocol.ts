@@ -14,8 +14,8 @@ export interface PanelMessage {
 }
 
 const actions = new Set(['projectSelect', 'projectAdd', 'projectRename', 'projectRemove', 'roleCopy', 'roleEdit', 'roleReset', 'todoReset', 'forward', 'contextFile', 'mcpEnable', 'mcpDisable', 'mcpStatus', 'mcpConfig', 'generateHarness', 'harnessWorkspace', 'harnessRecover', 'retention', 'send', 'resolve', 'starter', 'projectPrompt', 'limit', 'permission', 'project', 'commandDiff',
-  'stop', 'diagnostics', 'settings', 'ready', 'setup', 'new', 'select', 'rename', 'archive', 'delete', 'search', 'run',
-  'pasteRun', 'note', 'draft', 'copy', 'prepare', 'instructions', 'package', 'confirm', 'handoff',
+  'stop', 'diagnostics', 'settings', 'ready', 'setup', 'new', 'select', 'rename', 'archive', 'delete', 'search',
+  'webuiSet', 'webuiOpen', 'webuiCopyOpen', 'browserOptions', 'browserStart', 'browserPause', 'browserImport', 'stateOrganize', 'pasteRun', 'note', 'draft', 'copy', 'prepare', 'instructions', 'package', 'confirm', 'handoff',
   'review', 'approve', 'reject', 'recover', 'source', 'todo', 'history', 'workspace', 'harness', 'restart']);
 
 /** Reject unknown actions, extra properties, oversized data and malformed values. */
@@ -30,7 +30,7 @@ export function panelMessage(value: unknown): PanelMessage | undefined {
   if (p.line !== undefined && (!Number.isInteger(p.line) || (p.line as number) < 1 || (p.line as number) > 10000000)) { return; }
   if (p.value !== undefined && typeof p.value !== 'boolean') { return; }
   if (['select', 'draft'].includes(p.action) && typeof p.sessionId !== 'string') { return; }
-  if (['send', 'forward', 'run', 'note', 'draft', 'search', 'roleCopy'].includes(p.action) && typeof p.text !== 'string') { return; }
+  if (['send', 'forward', 'note', 'draft', 'search', 'roleCopy'].includes(p.action) && typeof p.text !== 'string') { return; }
   if (p.action === 'roleCopy' && !['planning', 'asking', 'implementation', 'review'].includes(String(p.text))) { return; }
   if (p.action === 'projectSelect' && typeof p.projectId !== 'string') { return; }
   if (p.action === 'contextFile' && typeof p.path !== 'string') { return; }
