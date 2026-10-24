@@ -96,6 +96,25 @@ def test_migration_closes_sqlite_handles_before_removing_old_paths(ws, monkeypat
             connection.execute("SELECT 1")
 
 
+def test_migration_never_reads_held_lock_contents(ws, monkeypatch):
+    """Model Windows byte-lock semantics on every host without weakening lease checks."""
+    legacy, session = legacy_workspace(ws)
+    with legacy.lock(scope="session:" + session):
+        pass
+    copy = shutil.copy2
+
+    def deny_lock_read(source, destination, *args, **kwargs):
+        """Copying a held lease is forbidden even though Unix would allow it."""
+        if str(source).endswith(".lock"):
+            raise PermissionError("Synthetic Windows byte-locked file")
+        return copy(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "copy2", deny_lock_read)
+    assert StateMigration(legacy).migrate(True)["layout"] == "organized"
+    assert (legacy.state / "locks/writer.lock").exists()
+    assert list((legacy.state / "locks").glob("operation-*.lock"))
+
+
 def test_failed_migration_rolls_back_configuration_and_keeps_originals(ws, monkeypatch):
     """A failed verified copy leaves the legacy session fully readable."""
     legacy, session = legacy_workspace(ws)

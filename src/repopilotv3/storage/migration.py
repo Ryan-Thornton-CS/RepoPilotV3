@@ -86,7 +86,7 @@ class StateMigration:
             if group in {"databases", "runtime"} and directory.exists() and any(directory.iterdir()):
                 raise PilotError("Destination already contains files. Inspect state recovery before migrating: " + group, "migration_conflict")
         with contextlib.ExitStack() as stack:
-            for path in sorted({self.ws.state / "writer.lock", *self.ws.state.glob("operation-*.lock")}):
+            for path in sorted({self.ws.state / "writer.lock", *self.ws.state.glob("operation-*.lock"), *self.ws.state.glob("locks/*.lock")}):
                 stack.enter_context(self.lease(path))
             migration_id = uid("migration")
             backup = self.ws.state / "recovery" / "layout" / migration_id
@@ -106,7 +106,10 @@ class StateMigration:
                     shutil.copy2(destination, backup / source.name)
                     journal["files"].append(source.name)
                 for source in self.ws.state.glob("*.lock"):
-                    shutil.copy2(source, self.ws.state / "locks" / source.name)
+                    # Lease bytes carry no state. Windows denies reads of byte-locked files.
+                    destination = self.ws.state / "locks" / source.name
+                    if not destination.exists():
+                        destination.write_bytes(b"0" if os.name == "nt" else b"")
                 for name in ("hook-health.json", "last-stop.json"):
                     source = self.ws.state / name
                     if source.exists():
